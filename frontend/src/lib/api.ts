@@ -2,14 +2,45 @@ let rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 if (rawBase.endsWith("/")) rawBase = rawBase.slice(0, -1);
 export const API_BASE = rawBase.endsWith("/api") ? rawBase : `${rawBase}/api`;
 
+// Auth token storage helper
+const TOKEN_KEY = "trustpay_auth_token";
+
+export function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+export async function loginDemoUser(userId: string, role: "client" | "freelancer"): Promise<string> {
+  const res = await fetch(`${API_BASE}/demo-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, role }),
+  });
+  if (!res.ok) throw new Error("Demo login failed");
+  const data = await res.json();
+  setStoredToken(data.access_token);
+  return data.access_token;
+}
+
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const cleanPath = url.startsWith("/") ? url : `/${url}`;
   const finalPath = cleanPath.startsWith("/api/") ? cleanPath.slice(4) : cleanPath;
   const fullUrl = url.startsWith("http") ? url : `${API_BASE}${finalPath}`;
+
+  const token = getStoredToken();
+  const authHeaders: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+
   const res = await fetch(fullUrl, {
     ...options,
     headers: {
       "Accept": "application/json",
+      ...authHeaders,
       ...(options?.headers || {}),
     },
   });
@@ -245,6 +276,92 @@ export async function fileDispute(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+}
+
+export interface ApplicationBrief {
+  min_price?: number;
+  preferred_price: number;
+  time_needed_days: number;
+  skills: string[];
+  exclusions?: string;
+  notes?: string;
+}
+
+export interface Application {
+  id: string;
+  job_id: string;
+  freelancer_id: string;
+  freelancer_name: string;
+  min_price?: number;
+  preferred_price: number;
+  time_needed_days: number;
+  skills: string[];
+  exclusions?: string;
+  notes?: string;
+  status: "applied" | "negotiating" | "agreement_reached" | "no_deal" | "approved" | "funded" | "closed";
+  client_approved: boolean;
+  freelancer_approved: boolean;
+  counters_used: number;
+  created_at: string;
+  updated_at: string;
+  contract?: Contract;
+  negotiation_turns?: NegotiationTurn[];
+}
+
+export async function createApplication(jobId: string, brief: {
+  min_price: number;
+  preferred_price: number;
+  time_needed_days: number;
+  skills: string[];
+  exclusions?: string;
+  notes?: string;
+  freelancer_name?: string;
+}): Promise<Application> {
+  return fetchJson<Application>(`/jobs/${jobId}/applications`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(brief),
+  });
+}
+
+export async function getJobApplications(jobId: string): Promise<Application[]> {
+  return fetchJson<Application[]>(`/jobs/${jobId}/applications`);
+}
+
+export async function getApplication(applicationId: string): Promise<Application> {
+  return fetchJson<Application>(`/applications/${applicationId}`);
+}
+
+export async function stepApplicationNegotiation(applicationId: string, runAll: boolean = false): Promise<any> {
+  return fetchJson(`/applications/${applicationId}/negotiate?run_all=${runAll}`, { method: "POST" });
+}
+
+export async function decideApplication(
+  applicationId: string,
+  action: "accept" | "reject" | "counter",
+  counterMessage?: string
+): Promise<any> {
+  return fetchJson(`/applications/${applicationId}/decide`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, counter_message: counterMessage }),
+  });
+}
+
+export async function claimFundApplication(applicationId: string): Promise<{ order_id: string; approve_url?: string }> {
+  return fetchJson(`/applications/${applicationId}/claim-fund`, { method: "POST" });
+}
+
+export async function confirmFundApplication(applicationId: string, orderId?: string, allowSandboxSimulation: boolean = true): Promise<any> {
+  return fetchJson(`/applications/${applicationId}/confirm-fund`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_id: orderId, allow_sandbox_simulation: allowSandboxSimulation }),
+  });
+}
+
+export async function cancelFundApplication(applicationId: string): Promise<any> {
+  return fetchJson(`/applications/${applicationId}/cancel-fund`, { method: "POST" });
 }
 
 export async function getStats(): Promise<SystemStats> {

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     SANDBOX_TIMEOUT_SECONDS: int = 30
     ALLOW_LOCAL_SANDBOX_FALLBACK: bool = False
     HUMAN_OVERRIDE_ENABLED: bool = False
+    SECRET_KEY: str = "trustpay-super-secret-jwt-key-hackathon-2026"
+    JWT_ALGORITHM: str = "HS256"
 
 
 settings = Settings()

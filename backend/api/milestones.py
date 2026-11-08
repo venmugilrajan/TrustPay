@@ -55,10 +55,16 @@ async def submit_and_evaluate_milestone(
         select(Job)
         .where(Job.id == job_id)
         .options(
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.acceptance_criteria),
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.submissions),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.acceptance_criteria),
+            selectinload(Job.contracts)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.submissions),
         )

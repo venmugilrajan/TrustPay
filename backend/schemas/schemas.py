@@ -53,13 +53,55 @@ class NegotiationTurnSchema(BaseModel):
 class JobCreateRequest(BaseModel):
     title: str = Field(min_length=2, max_length=255)
     description: str = Field(min_length=2)
-    max_budget: float = Field(gt=0)
+    deliverables: Optional[str] = Field(default=None, description="Explicit deliverable requirements")
+    max_budget: float = Field(gt=0, description="PRIVATE: Maximum client budget allocation")
+    public_budget_estimate: Optional[str] = Field(default=None, description="Optional public estimate for browsing; if omitted, shows 'Negotiable'")
     currency: str = Field(default="USD")
     deadline: str = Field(description="Target completion deadline, e.g. 2026-12-01")
+    priorities: Literal["cheap", "fast", "quality"] = Field(default="quality", description="Client priority anchor")
+    must_haves: Optional[str] = Field(default=None, description="Mandatory scope items")
+
+
+class ApplicationCreateRequest(BaseModel):
+    freelancer_id: Optional[str] = Field(default="freelancer_demo")
+    freelancer_name: Optional[str] = Field(default="Senior Full-Stack Engineer")
+    min_price: float = Field(gt=0, description="PRIVATE: Minimum acceptable price floor")
+    preferred_price: float = Field(gt=0, description="Target counter-offer quote")
+    time_needed_days: int = Field(gt=0, default=14)
+    skills: Optional[str] = Field(default=None)
+    exclusions: Optional[str] = Field(default=None)
+    notes: Optional[str] = Field(default=None)
+
+
+class HumanDecisionRequest(BaseModel):
+    role: Literal["client", "freelancer"]
+    action: Literal["accept", "reject", "counter"]
+    message: Optional[str] = Field(default=None, description="Counter feedback message (e.g. lower price by $50)")
 
 
 class ApprovalRequest(BaseModel):
     role: Literal["client", "freelancer"]
+
+
+class ApplicationResponse(BaseModel):
+    id: str
+    job_id: str
+    freelancer_id: str
+    freelancer_name: str
+    # min_price is NEVER serialized here (Role protection)
+    preferred_price: float
+    time_needed_days: int
+    skills: Optional[str] = None
+    exclusions: Optional[str] = None
+    notes: Optional[str] = None
+    status: str
+    client_approved: bool
+    freelancer_approved: bool
+    counters_used: int
+    created_at: datetime
+    updated_at: datetime
+    contract: Optional["ContractResponse"] = None
+    negotiation_turns: List[NegotiationTurnSchema] = []
 
 
 class DeliverableSubmissionResponse(BaseModel):
@@ -149,11 +191,16 @@ class ContractResponse(BaseModel):
 
 class JobResponse(BaseModel):
     id: str
+    client_id: str = "client_default"
     title: str
     description: str
-    max_budget: float
+    deliverables: Optional[str] = None
+    max_budget: Optional[float] = None  # Strictly None when viewed by freelancer!
+    public_budget_estimate: Optional[str] = "Negotiable"  # What freelancers see
     currency: str
     deadline: str
+    priorities: Optional[str] = "quality"
+    must_haves: Optional[str] = None
     status: str
     client_approved: bool
     freelancer_approved: bool
@@ -166,5 +213,9 @@ class JobResponse(BaseModel):
     updated_at: datetime
     contract: Optional[ContractResponse] = None
     negotiation_turns: List[NegotiationTurnSchema] = []
+    applications: List[ApplicationResponse] = []
     audit_logs: List[AuditLogResponse] = []
+
+
+ApplicationResponse.model_rebuild()
 

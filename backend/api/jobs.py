@@ -9,8 +9,10 @@ from sqlalchemy.orm import selectinload
 
 from backend.core.config import settings
 from backend.core.database import get_db
+from backend.core.auth import get_current_user, get_optional_user
 from backend.models.models import (
     Job,
+    Application,
     Contract,
     Milestone,
     AcceptanceCriterion,
@@ -29,6 +31,7 @@ from backend.schemas.schemas import (
 from backend.agents.client_agent import run_client_agent_turn
 from backend.agents.freelancer_agent import run_freelancer_agent_turn
 from backend.services.paypal_service import paypal_service, PayPalServiceError
+from backend.api.applications import serialize_application
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 logger = logging.getLogger("trustpay.api.jobs")
@@ -56,16 +59,28 @@ async def load_job_with_relations(db: AsyncSession, job_id: str) -> Optional[Job
         select(Job)
         .where(Job.id == job_id)
         .options(
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.acceptance_criteria),
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.submissions)
             .selectinload(DeliverableSubmission.evaluations),
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.disputes),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.acceptance_criteria),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.submissions)
+            .selectinload(DeliverableSubmission.evaluations),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.disputes),
+            selectinload(Job.applications).selectinload(Application.contract).selectinload(Contract.milestones),
+            selectinload(Job.applications).selectinload(Application.negotiation_turns),
             selectinload(Job.negotiation_turns),
             selectinload(Job.audit_logs),
         )
@@ -75,17 +90,28 @@ async def load_job_with_relations(db: AsyncSession, job_id: str) -> Optional[Job
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_job(request: JobCreateRequest, db: AsyncSession = Depends(get_db)):
+async def create_job(
+    request: JobCreateRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Creates a new freelance job posting and initializes negotiation state.
+    Creates a new freelance job posting in 'open' status.
+    Client max_budget is stored as private.
     """
+    client_id = current_user["user_id"] if current_user else "client_default"
     job = Job(
+        client_id=client_id,
         title=request.title,
         description=request.description,
+        deliverables=request.deliverables,
         max_budget=request.max_budget,
+        public_budget_estimate=request.public_budget_estimate,
         currency=request.currency,
         deadline=request.deadline,
-        status="negotiating",
+        priorities=request.priorities,
+        must_haves=request.must_haves,
+        status="open",
     )
     db.add(job)
     await db.flush()
@@ -103,34 +129,61 @@ async def create_job(request: JobCreateRequest, db: AsyncSession = Depends(get_d
     )
     await db.commit()
 
-    return {"id": job.id, "status": job.status, "message": "Job created. AI agents ready to negotiate."}
+    return {"id": job.id, "status": job.status, "message": "Job created in open status. Awaiting applications."}
 
 
 @router.get("", response_model=List[dict])
-async def list_jobs(db: AsyncSession = Depends(get_db)):
+async def list_jobs(
+    current_user: Optional[dict] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Lists all jobs with summary metrics.
+    Lists all jobs. Role-sensitive:
+    - If caller is client owner: reveals max_budget.
+    - If caller is freelancer or public: max_budget is None; displays public_budget_estimate or 'Negotiable'.
     """
-    stmt = select(Job).order_by(Job.created_at.desc())
+    stmt = (
+        select(Job)
+        .options(
+            selectinload(Job.applications),
+            selectinload(Job.active_contract).selectinload(Contract.milestones),
+            selectinload(Job.contracts).selectinload(Contract.milestones),
+        )
+        .order_by(Job.created_at.desc())
+    )
     result = await db.execute(stmt)
     jobs = result.scalars().all()
-    return [
-        {
+
+    caller_role = current_user.get("role") if current_user else "freelancer"
+    caller_id = current_user.get("user_id") if current_user else None
+
+    out = []
+    for j in jobs:
+        is_client_owner = caller_role == "client" and (caller_id == j.client_id or caller_id == "client_default")
+        visible_max_budget = j.max_budget if is_client_owner else None
+        public_estimate = j.public_budget_estimate or "Negotiable"
+
+        out.append({
             "id": j.id,
+            "client_id": j.client_id,
             "title": j.title,
             "description": j.description,
-            "max_budget": j.max_budget,
+            "deliverables": j.deliverables,
+            "max_budget": visible_max_budget,
+            "public_budget_estimate": public_estimate,
             "currency": j.currency,
             "deadline": j.deadline,
+            "priorities": j.priorities,
+            "must_haves": j.must_haves,
             "status": j.status,
+            "applications_count": len(j.applications) if j.applications else 0,
             "client_approved": j.client_approved,
             "freelancer_approved": j.freelancer_approved,
             "paypal_status": j.paypal_status,
             "is_demo": bool(getattr(j, "is_demo", False)),
             "created_at": j.created_at.isoformat(),
-        }
-        for j in jobs
-    ]
+        })
+    return out
 
 
 @router.get("/stats/summary", response_model=dict)
@@ -174,13 +227,27 @@ async def get_job_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{job_id}", response_model=dict)
-async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
+async def get_job(
+    job_id: str,
+    current_user: Optional[dict] = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Retrieves full details of a job, including contract, milestones, turns, and audit logs.
+    Retrieves full details of a job.
+    Role privacy:
+    - If caller is client owner: reveals max_budget.
+    - If caller is freelancer: max_budget is None; displays public_budget_estimate or 'Negotiable'.
     """
     job = await load_job_with_relations(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    caller_role = current_user.get("role") if current_user else "freelancer"
+    caller_id = current_user.get("user_id") if current_user else None
+    is_client_owner = caller_role == "client" and (caller_id == job.client_id or caller_id == "client_default")
+
+    visible_max_budget = job.max_budget if is_client_owner else None
+    public_estimate = job.public_budget_estimate or "Negotiable"
 
     contract_data = None
     if job.contract:
@@ -251,11 +318,16 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
 
     return {
         "id": job.id,
+        "client_id": job.client_id,
         "title": job.title,
         "description": job.description,
-        "max_budget": job.max_budget,
+        "deliverables": job.deliverables,
+        "max_budget": visible_max_budget,
+        "public_budget_estimate": public_estimate,
         "currency": job.currency,
         "deadline": job.deadline,
+        "priorities": job.priorities,
+        "must_haves": job.must_haves,
         "status": job.status,
         "client_approved": job.client_approved,
         "freelancer_approved": job.freelancer_approved,
@@ -267,6 +339,7 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
         "created_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
         "contract": contract_data,
+        "applications": [serialize_application(a, role=caller_role) for a in job.applications] if job.applications else [],
         "negotiation_turns": [
             {
                 "id": t.id,

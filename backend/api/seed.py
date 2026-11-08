@@ -146,6 +146,7 @@ async def seed_demo_scenarios(db: AsyncSession = Depends(get_db)):
     )
     db.add(contract_pass)
     await db.flush()
+    job_pass.active_contract_id = contract_pass.id
 
     m1_pass = Milestone(
         contract_id=contract_pass.id,
@@ -317,6 +318,7 @@ async def seed_demo_scenarios(db: AsyncSession = Depends(get_db)):
     )
     db.add(contract_part)
     await db.flush()
+    job_part.active_contract_id = contract_part.id
 
     m1_part = Milestone(
         contract_id=contract_part.id,
@@ -485,6 +487,7 @@ async def seed_demo_scenarios(db: AsyncSession = Depends(get_db)):
     )
     db.add(contract_fail)
     await db.flush()
+    job_fail.active_contract_id = contract_fail.id
 
     m1_fail = Milestone(
         contract_id=contract_fail.id,

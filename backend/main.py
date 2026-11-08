@@ -12,6 +12,8 @@ from backend.api.disputes import router as disputes_router
 from backend.api.webhooks import router as webhooks_router
 from backend.api.timeline import router as timeline_router
 from backend.api.seed import router as seed_router
+from backend.api.auth import router as auth_router
+from backend.api.applications import router as applications_router
 
 logging.basicConfig(
     level=logging.INFO if settings.DEBUG else logging.WARNING,
@@ -46,7 +48,9 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(jobs_router)
+app.include_router(applications_router)
 app.include_router(milestones_router)
 app.include_router(disputes_router)
 app.include_router(webhooks_router)

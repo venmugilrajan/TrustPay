@@ -9,6 +9,7 @@ from backend.models.models import (
     Job,
     Contract,
     Milestone,
+    DeliverableSubmission,
     DisputeRecord,
     AuditLog,
 )
@@ -45,13 +46,20 @@ async def raise_and_arbitrate_dispute(
         select(Job)
         .where(Job.id == job_id)
         .options(
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.acceptance_criteria),
-            selectinload(Job.contract)
+            selectinload(Job.active_contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.submissions)
-            .selectinload(Milestone.submissions.property.mapper.class_.evaluations),
+            .selectinload(DeliverableSubmission.evaluations),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.acceptance_criteria),
+            selectinload(Job.contracts)
+            .selectinload(Contract.milestones)
+            .selectinload(Milestone.submissions)
+            .selectinload(DeliverableSubmission.evaluations),
         )
     )
     res = await db.execute(stmt)

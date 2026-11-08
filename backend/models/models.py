@@ -24,14 +24,19 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_id = Column(String(100), nullable=False, default="client_default")
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    max_budget = Column(Float, nullable=False)
+    deliverables = Column(Text, nullable=True)
+    max_budget = Column(Float, nullable=False)  # 100% PRIVATE
+    public_budget_estimate = Column(String(100), nullable=True)  # Optional client-set; null/empty -> "Negotiable"
     currency = Column(String(10), default="USD", nullable=False)
     deadline = Column(String(50), nullable=False)
+    priorities = Column(String(50), default="quality", nullable=False)  # cheap, fast, quality
+    must_haves = Column(Text, nullable=True)
 
-    # Status: negotiating, awaiting_approval, funded, in_progress, disputed, completed, no_deal
-    status = Column(String(50), default="negotiating", nullable=False)
+    # Status: open, negotiating, awaiting_approval, approved, funded, in_progress, disputed, completed, closed, no_deal
+    status = Column(String(50), default="open", nullable=False)
 
     client_approved = Column(Boolean, default=False, nullable=False)
     freelancer_approved = Column(Boolean, default=False, nullable=False)
@@ -45,20 +50,63 @@ class Job(Base):
     paypal_status = Column(String(50), nullable=True)
     authorization_expires_at = Column(String(100), nullable=True)
 
+    # Active funded contract
+    active_contract_id = Column(String(36), ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now, nullable=False)
 
     # Relationships
-    contract = relationship("Contract", back_populates="job", uselist=False, cascade="all, delete-orphan")
+    active_contract = relationship("Contract", foreign_keys=[active_contract_id], post_update=True)
+    contracts = relationship("Contract", foreign_keys="Contract.job_id", back_populates="job", cascade="all, delete-orphan")
     negotiation_turns = relationship("NegotiationTurn", back_populates="job", cascade="all, delete-orphan", order_by="NegotiationTurn.round_number")
+    applications = relationship("Application", back_populates="job", cascade="all, delete-orphan", order_by="Application.created_at.desc()")
     audit_logs = relationship("AuditLog", back_populates="job", cascade="all, delete-orphan", order_by="AuditLog.timestamp.desc()")
+
+    @property
+    def contract(self):
+        """Active contract accessor for milestones, judge, and funding."""
+        return self.active_contract or (self.contracts[0] if self.contracts else None)
+
+
+class Application(Base):
+    __tablename__ = "applications"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    job_id = Column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    freelancer_id = Column(String(100), nullable=False, default="freelancer_demo")
+    freelancer_name = Column(String(100), nullable=False, default="Alex Morgan (Senior Full-Stack)")
+
+    # Private Brief Fields (Never leaked to Client API)
+    min_price = Column(Float, nullable=False)
+    preferred_price = Column(Float, nullable=False)
+    time_needed_days = Column(Integer, nullable=False, default=14)
+    skills = Column(String(255), nullable=True)
+    exclusions = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    freelancer_brief = Column(JSON, nullable=True)
+
+    # Status: negotiating, awaiting_approval, approved, no_deal, closed, funded
+    status = Column(String(50), default="negotiating", nullable=False)
+    client_approved = Column(Boolean, default=False, nullable=False)
+    freelancer_approved = Column(Boolean, default=False, nullable=False)
+    counters_used = Column(Integer, default=0, nullable=False)  # max 2
+
+    created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now, nullable=False)
+
+    # Relationships
+    job = relationship("Job", back_populates="applications")
+    negotiation_turns = relationship("NegotiationTurn", back_populates="application", cascade="all, delete-orphan", order_by="NegotiationTurn.round_number")
+    contract = relationship("Contract", back_populates="application", uselist=False, cascade="all, delete-orphan")
 
 
 class Contract(Base):
     __tablename__ = "contracts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    job_id = Column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True)
+    job_id = Column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    application_id = Column(String(36), ForeignKey("applications.id", ondelete="SET NULL"), nullable=True)
     total_amount = Column(Float, nullable=False)
     currency = Column(String(10), default="USD", nullable=False)
     deadline = Column(String(50), nullable=False)
@@ -68,7 +116,8 @@ class Contract(Base):
     updated_at = Column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now, nullable=False)
 
     # Relationships
-    job = relationship("Job", back_populates="contract")
+    job = relationship("Job", foreign_keys=[job_id], back_populates="contracts")
+    application = relationship("Application", back_populates="contract")
     milestones = relationship("Milestone", back_populates="contract", cascade="all, delete-orphan", order_by="Milestone.order_index")
 
 
@@ -115,6 +164,7 @@ class NegotiationTurn(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     job_id = Column(String(36), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    application_id = Column(String(36), ForeignKey("applications.id", ondelete="CASCADE"), nullable=True)
     round_number = Column(Integer, nullable=False)
     agent_role = Column(String(50), nullable=False)  # "client" or "freelancer"
     message = Column(Text, nullable=False)
@@ -126,6 +176,7 @@ class NegotiationTurn(Base):
     timestamp = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
 
     job = relationship("Job", back_populates="negotiation_turns")
+    application = relationship("Application", back_populates="negotiation_turns")
 
 
 class DeliverableSubmission(Base):
