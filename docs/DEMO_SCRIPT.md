@@ -17,7 +17,7 @@
   > "The client posts a job with a simple description and budget. Immediately, two specialized AI agents step in.
   > The **Client Agent** protects the buyer's budget and demands strict automated acceptance criteria with test weights.
   > The **Freelancer Agent** advocates for the worker, negotiating fair pay and realistic deadlines.
-  > Watch them alternate turns in real-time: after two rounds of counter-offers, they converge on a balanced $1,300 agreement split into two verified milestones. Notice how milestone sums strictly equal the total amount.
+  > Watch them alternate turns in real-time: adhering to a mandatory minimum of three rounds of rigorous counter-offers and price rationales, they converge on a balanced $1,300 agreement split into two verified milestones. Notice how milestone sums strictly equal the total amount.
   > Both the client and freelancer inspect the contract and click **Approve**."
 
 ---
@@ -53,4 +53,5 @@
 - **Visual**: Show the full PayPal Payment & Audit Timeline with immutable logs, then return to the TrustPay landing page.
 - **Narrator**:
   > "Every transaction, turn, and capture is logged in an immutable PayPal timeline.
-  > TrustPay eliminates friction, ends invoice chasing, and builds trust for the next billion freelance deals. Powered by PayPal Sandbox and Claude AI."
+  > TrustPay eliminates friction, ends invoice chasing, and builds trust for the next billion freelance deals. Powered by PayPal Sandbox and high-speed AI reasoning via Groq and Claude."
+

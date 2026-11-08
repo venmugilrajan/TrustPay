@@ -43,14 +43,16 @@ class NegotiationTurnSchema(BaseModel):
     agent_role: Literal["client", "freelancer"]
     message: str
     proposal_summary: Optional[str] = None
+    proposed_price: Optional[float] = None
+    price_change_reason: Optional[str] = None
     contract_draft: Optional[ContractSchema] = None
     agreed: bool = False
     timestamp: Optional[datetime] = None
 
 
 class JobCreateRequest(BaseModel):
-    title: str = Field(min_length=3, max_length=255)
-    description: str = Field(min_length=10)
+    title: str = Field(min_length=2, max_length=255)
+    description: str = Field(min_length=2)
     max_budget: float = Field(gt=0)
     currency: str = Field(default="USD")
     deadline: str = Field(description="Target completion deadline, e.g. 2026-12-01")
@@ -155,6 +157,7 @@ class JobResponse(BaseModel):
     status: str
     client_approved: bool
     freelancer_approved: bool
+    is_demo: bool = False
     paypal_order_id: Optional[str] = None
     paypal_authorization_id: Optional[str] = None
     paypal_status: Optional[str] = None
@@ -164,3 +167,4 @@ class JobResponse(BaseModel):
     contract: Optional[ContractResponse] = None
     negotiation_turns: List[NegotiationTurnSchema] = []
     audit_logs: List[AuditLogResponse] = []
+

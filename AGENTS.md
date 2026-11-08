@@ -66,3 +66,4 @@ All code and assets must strictly adhere to the following directory layout:
 
 6. **Human Override Safety**:
    - Include a human override toggle in settings (defaulting to off for demo velocity, but fully functional) so human clients or freelancers can review and intervene before payout execution.
+

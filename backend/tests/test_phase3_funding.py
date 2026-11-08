@@ -63,3 +63,4 @@ async def test_funding_and_authorization_lifecycle():
         event_types = [log["event_type"] for log in job_detail["audit_logs"]]
         assert "PAYPAL_ORDER_CREATED" in event_types
         assert "PAYPAL_ORDER_AUTHORIZED" in event_types
+

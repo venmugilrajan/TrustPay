@@ -121,3 +121,4 @@ async def test_job_negotiation_and_approval_flow():
         assert res.status_code == 200
         assert res.json()["freelancer_approved"] is True
         assert res.json()["status"] == "approved"
+

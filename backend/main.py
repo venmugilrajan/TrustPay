@@ -1,10 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import settings
-from backend.core.database import init_db
+from backend.core.database import init_db, get_db
 from backend.api.jobs import router as jobs_router
 from backend.api.milestones import router as milestones_router
 from backend.api.disputes import router as disputes_router
@@ -55,9 +56,30 @@ app.include_router(seed_router)
 
 @app.get("/api/health")
 async def health_check():
+    from backend.services.paypal_service import paypal_service
+    from backend.services.llm_service import llm_service
+
+    paypal_live = False
+    if not settings.MOCK_MODE and not paypal_service.is_mock_mode:
+        try:
+            token = await paypal_service.get_access_token()
+            paypal_live = bool(token and not token.startswith("mock_"))
+        except Exception:
+            paypal_live = False
+
+    is_live = paypal_live and not settings.MOCK_MODE
     return {
         "status": "healthy",
         "env": settings.APP_ENV,
-        "paypal_mode": "mock" if settings.PAYPAL_CLIENT_ID.startswith("your_") or not settings.PAYPAL_CLIENT_ID else "live",
-        "llm_mode": "mock" if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY.startswith("your_") else "live",
+        "mode": "live" if is_live else "mock",
+        "paypal_mode": "live" if paypal_live else "mock",
+        "paypal_live_connected": paypal_live,
+        "llm_provider": llm_service.active_provider,
+        "llm_mode": "mock" if llm_service.is_mock_mode else "live",
     }
+
+
+@app.get("/api/stats")
+async def get_system_stats(db: AsyncSession = Depends(get_db)):
+    from backend.api.jobs import get_job_stats
+    return await get_job_stats(db)

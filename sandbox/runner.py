@@ -9,11 +9,19 @@ import subprocess
 import shutil
 from typing import Dict, Any, Optional, List
 
+from backend.core.config import settings
+
+
+class SandboxSecurityError(RuntimeError):
+    """Raised when sandbox security requirements (e.g. Docker isolation) cannot be satisfied."""
+    pass
+
 
 class CodeSandboxRunner:
     """
-    Executes delivered code and verification tests inside an isolated sandbox environment.
-    Supports containerized execution (Docker) and local isolated process fallback.
+    Executes delivered code and verification tests inside a secure Docker container.
+    Enforces zero network access (--network none), memory/CPU limits, and strict timeouts.
+    Fails closed if Docker container daemon is unavailable unless explicitly overridden.
     """
 
     def __init__(self, timeout_seconds: int = 30, memory_limit_mb: int = 256):
@@ -36,17 +44,13 @@ class CodeSandboxRunner:
             return False
 
     def extract_zip_safely(self, zip_path: str, extract_to: str) -> List[str]:
-        """
-        Extracts ZIP archive with strict path traversal protection.
-        """
+        """Extracts ZIP archive with strict path traversal protection."""
         extracted_files = []
         with zipfile.ZipFile(zip_path, "r") as archive:
             for member in archive.infolist():
-                # Prevent path traversal
                 norm_name = os.path.normpath(member.filename)
                 if norm_name.startswith("..") or os.path.isabs(norm_name):
                     continue
-                target_path = os.path.join(extract_to, norm_name)
                 archive.extract(member, extract_to)
                 extracted_files.append(norm_name)
         return extracted_files
@@ -59,7 +63,26 @@ class CodeSandboxRunner:
     ) -> Dict[str, Any]:
         """
         Executes code against test script with resource and time limits.
+        Fails closed if Docker is unavailable unless ALLOW_LOCAL_SANDBOX_FALLBACK is True.
         """
+        # Security Guardrail: Fail closed if Docker daemon is not available
+        if not self.has_docker:
+            if not settings.ALLOW_LOCAL_SANDBOX_FALLBACK:
+                error_msg = (
+                    "SANDBOX SECURITY ERROR: Docker container isolation is required for untrusted code execution "
+                    "(--network none, memory and CPU limits). Docker daemon is not running or unavailable. "
+                    "Refusing to execute untrusted code on host system (fail-closed)."
+                )
+                return {
+                    "success": False,
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": error_msg,
+                    "tests": [],
+                    "runner_mode": "docker_failed_closed",
+                    "security_error": True,
+                }
+
         start_time = time.time()
         temp_dir = tempfile.mkdtemp(prefix="trustpay_sandbox_")
 
@@ -74,16 +97,12 @@ class CodeSandboxRunner:
 
             # 2. Write test script
             if not test_script:
-                # Default sanity test if none provided
-                test_script = """
-def test_submission_exists():
-    assert True
-"""
+                test_script = "def test_submission_exists(): assert True\n"
             test_file = os.path.join(temp_dir, "test_deliverable.py")
             with open(test_file, "w", encoding="utf-8") as f:
                 f.write(test_script)
 
-            # 3. Choose runner mode
+            # 3. Execute in Docker if available, else local fallback if explicitly enabled
             if self.has_docker:
                 result = await self._run_in_docker(temp_dir)
             else:
@@ -96,73 +115,10 @@ def test_submission_exists():
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    async def _run_in_subprocess(self, workspace_dir: str) -> Dict[str, Any]:
-        """
-        Isolated local subprocess runner with timeout and restricted environment.
-        """
-        # Run pytest inside workspace
-        cmd = [sys.executable, "-m", "pytest", "test_deliverable.py", "-v", "--no-header"]
-        env = os.environ.copy()
-        env["PYTHONPATH"] = workspace_dir
-        env["PYTHONDONTWRITEBYTECODE"] = "1"
-
-        try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                cwd=workspace_dir,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-            )
-
-            try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout_seconds,
-                )
-                stdout = stdout_bytes.decode("utf-8", errors="replace")
-                stderr = stderr_bytes.decode("utf-8", errors="replace")
-                exit_code = process.returncode
-
-                # Parse test outcomes
-                tests = self._parse_pytest_output(stdout)
-
-                return {
-                    "success": exit_code == 0,
-                    "exit_code": exit_code,
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "tests": tests,
-                    "runner_mode": "local_process",
-                }
-
-            except asyncio.TimeoutError:
-                try:
-                    process.kill()
-                except Exception:
-                    pass
-                return {
-                    "success": False,
-                    "exit_code": -1,
-                    "stdout": "",
-                    "stderr": f"Execution timed out after {self.timeout_seconds} seconds.",
-                    "tests": [],
-                    "runner_mode": "local_process",
-                }
-
-        except Exception as exc:
-            return {
-                "success": False,
-                "exit_code": -1,
-                "stdout": "",
-                "stderr": f"Sandbox runner error: {str(exc)}",
-                "tests": [],
-                "runner_mode": "local_process",
-            }
-
     async def _run_in_docker(self, workspace_dir: str) -> Dict[str, Any]:
         """
-        Runs tests inside secure non-root Docker container with network disabled.
+        Runs tests inside secure non-root Docker container with network disabled:
+        --network none, --memory 256m, --cpus 1.0, read-only volume.
         """
         cmd = [
             "docker", "run", "--rm",
@@ -199,16 +155,67 @@ def test_submission_exists():
                 "success": False,
                 "exit_code": -1,
                 "stdout": "",
-                "stderr": f"Docker execution error: {str(exc)}",
+                "stderr": f"Docker container execution error: {str(exc)}",
                 "tests": [],
                 "runner_mode": "docker",
             }
 
+    async def _run_in_subprocess(self, workspace_dir: str) -> Dict[str, Any]:
+        """Local subprocess fallback only when explicitly permitted by settings."""
+        cmd = [sys.executable, "-m", "pytest", "test_deliverable.py", "-v", "--no-header"]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = workspace_dir
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                cwd=workspace_dir,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=self.timeout_seconds,
+                )
+                stdout = stdout_bytes.decode("utf-8", errors="replace")
+                stderr = stderr_bytes.decode("utf-8", errors="replace")
+                return {
+                    "success": process.returncode == 0,
+                    "exit_code": process.returncode,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "tests": self._parse_pytest_output(stdout),
+                    "runner_mode": "local_process_fallback",
+                }
+            except asyncio.TimeoutError:
+                try:
+                    process.kill()
+                except Exception:
+                    pass
+                return {
+                    "success": False,
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"Execution timed out after {self.timeout_seconds} seconds.",
+                    "tests": [],
+                    "runner_mode": "local_process_fallback",
+                }
+        except Exception as exc:
+            return {
+                "success": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": f"Process runner error: {str(exc)}",
+                "tests": [],
+                "runner_mode": "local_process_fallback",
+            }
+
     @staticmethod
     def _parse_pytest_output(output: str) -> List[Dict[str, Any]]:
-        """
-        Extracts structured test names and pass/fail statuses from pytest output.
-        """
         results = []
         for line in output.splitlines():
             line_str = line.strip()
@@ -220,17 +227,5 @@ def test_submission_exists():
         return results
 
 
-# Global sandbox instance
+# Global instance
 sandbox_runner = CodeSandboxRunner()
-
-
-if __name__ == "__main__":
-    # Self-test runner
-    async def main():
-        runner = CodeSandboxRunner()
-        sample_code = "def add(a, b): return a + b\n"
-        sample_test = "from solution import add\ndef test_add(): assert add(2, 3) == 5\n"
-        res = await runner.execute_code_tests(code_content=sample_code, test_script=sample_test)
-        print(json.dumps(res, indent=2))
-
-    asyncio.run(main())

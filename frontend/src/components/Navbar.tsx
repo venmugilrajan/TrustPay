@@ -10,6 +10,19 @@ export default function Navbar() {
   const [isDark, setIsDark] = useState(true);
   const [role, setRole] = useState<"client" | "freelancer">("client");
   const [isSeeding, setIsSeeding] = useState(false);
+  const [systemMode, setSystemMode] = useState<"live" | "mock">("live");
+
+  useEffect(() => {
+    // Check backend live / mock status
+    fetch("/api/health")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.mode) {
+          setSystemMode(data.mode);
+        }
+      })
+      .catch(() => setSystemMode("live"));
+  }, []);
 
   useEffect(() => {
     // Sync dark class on html
@@ -36,7 +49,7 @@ export default function Navbar() {
   const handleSeedDemo = async () => {
     setIsSeeding(true);
     try {
-      const res = await fetch("http://localhost:8000/api/seed", { method: "POST" });
+      const res = await fetch("/api/seed", { method: "POST" });
       const data = await res.json();
       if (data.success && data.scenarios) {
         // Navigate to the passing scenario
@@ -97,6 +110,19 @@ export default function Navbar() {
 
         {/* Actions & Role Switcher */}
         <div className="flex items-center space-x-3">
+          {/* Live / Mock Mode Status Badge */}
+          {systemMode === "live" ? (
+            <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm" title="Operating with live PayPal Sandbox and Groq AI">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>LIVE: PayPal &amp; Groq</span>
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 text-xs font-bold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Operating in simulated mock mode">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>MOCK MODE</span>
+            </div>
+          )}
+
           {/* Seed Demo Button */}
           <button
             onClick={handleSeedDemo}
@@ -140,3 +166,4 @@ export default function Navbar() {
     </header>
   );
 }
+

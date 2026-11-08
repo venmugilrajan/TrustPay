@@ -13,7 +13,7 @@ That vision is **TrustPay**.
 ---
 
 ## ⚡ What It Does
-TrustPay is an autonomous escrow and milestone verification platform built on PayPal's Orders v2 REST API and Anthropic's Claude API:
+TrustPay is an autonomous escrow and milestone verification platform built on PayPal's Orders v2 REST API and high-performance LLM engines (Groq API & Anthropic Claude):
 
 1. **AI-to-AI Deal Negotiation**: A Client Agent (buyer advocate) and Freelancer Agent (worker advocate) negotiate terms, milestones, and testable acceptance criteria across alternating rounds.
 2. **Strict Invariant Validation**: Milestone amounts must sum strictly to the total contract budget, guaranteed in code via Pydantic validators.
@@ -31,7 +31,7 @@ TrustPay is an autonomous escrow and milestone verification platform built on Pa
 ## 🛠️ How We Built It
 - **Backend**: FastAPI (Python 3.11+), SQLAlchemy async session, SQLite (Postgres-ready via `DATABASE_URL`).
 - **Payments**: PayPal Orders v2 REST API (`intent: AUTHORIZE`, partial captures, voids, refunds, reauthorization checks, webhook signature verification). All PayPal calls are strictly encapsulated in `backend/services/paypal_service.py`.
-- **AI Intelligence**: Anthropic Claude API (`backend/services/llm_service.py`) using structured Pydantic JSON schemas, low temperature (`0.2`), automatic retries, and adversarial prompt-injection guardrails.
+- **AI Intelligence**: Groq API (`openai/gpt-oss-120b` & `qwen/qwen3.8-27b`) for sub-second agent negotiations and Anthropic Claude fallback (`backend/services/llm_service.py`), utilizing structured Pydantic JSON schemas, low temperature (`0.2`), automatic retry loops, and adversarial prompt-injection guardrails.
 - **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide icons, responsive dark/light mode, and seamless Client/Freelancer role switching.
 - **Sandbox**: Dual-mode runner supporting Docker containers (`--network none`) and local isolated process execution with memory and execution timeouts.
 - **Deployment**: Render-ready with `render.yaml` and production `Dockerfile`.
@@ -62,3 +62,4 @@ TrustPay is an autonomous escrow and milestone verification platform built on Pa
 - **Multi-Currency & Cross-Border Payouts**: Expanding to PayPal Payouts API for instant international freelancer withdrawals across 120+ currencies.
 - **WebAssembly Client-Side Sandboxes**: Running browser-native code sandboxes for instant previewing of frontend component deliverables.
 - **Reputation Scores**: On-chain and verifiable credential ratings for freelancers and clients based on successful milestone completion rates.
+

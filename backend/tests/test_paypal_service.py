@@ -117,3 +117,4 @@ def test_is_authorization_expiring_soon():
     # None or invalid format returns False gracefully
     assert PayPalService.is_authorization_expiring_soon(None) is False
     assert PayPalService.is_authorization_expiring_soon("invalid-date") is False
+

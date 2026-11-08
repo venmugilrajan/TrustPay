@@ -88,3 +88,4 @@ async def test_milestone_submission_prompt_injection_detection():
         assert data["verdict"] == "fail"
         assert data["amount_captured"] == 0.0
         assert data["milestone_status"] == "rejected"
+

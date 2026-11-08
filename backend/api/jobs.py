@@ -13,6 +13,8 @@ from backend.models.models import (
     Milestone,
     AcceptanceCriterion,
     NegotiationTurn,
+    DeliverableSubmission,
+    JudgeEvaluation,
     AuditLog,
 )
 from backend.schemas.schemas import (
@@ -56,7 +58,8 @@ async def load_job_with_relations(db: AsyncSession, job_id: str) -> Optional[Job
             .selectinload(Milestone.acceptance_criteria),
             selectinload(Job.contract)
             .selectinload(Contract.milestones)
-            .selectinload(Milestone.submissions),
+            .selectinload(Milestone.submissions)
+            .selectinload(DeliverableSubmission.evaluations),
             selectinload(Job.contract)
             .selectinload(Contract.milestones)
             .selectinload(Milestone.disputes),
@@ -120,10 +123,51 @@ async def list_jobs(db: AsyncSession = Depends(get_db)):
             "client_approved": j.client_approved,
             "freelancer_approved": j.freelancer_approved,
             "paypal_status": j.paypal_status,
+            "is_demo": bool(getattr(j, "is_demo", False)),
             "created_at": j.created_at.isoformat(),
         }
         for j in jobs
     ]
+
+
+@router.get("/stats/summary", response_model=dict)
+async def get_job_stats(db: AsyncSession = Depends(get_db)):
+    """
+    Returns verified system-wide escrow and PayPal statistics from real DB state.
+    """
+    from backend.services.paypal_service import paypal_service
+
+    # Query all jobs and milestones
+    jobs_res = await db.execute(select(Job).options(selectinload(Job.contract).selectinload(Contract.milestones)))
+    all_jobs = jobs_res.scalars().all()
+
+    total_jobs = len(all_jobs)
+    active_jobs = sum(1 for j in all_jobs if j.status in ["negotiating", "awaiting_approval", "approved", "in_progress", "disputed"])
+    completed_deals = sum(1 for j in all_jobs if j.status == "completed")
+
+    total_authorized_usd = 0.0
+    total_captured_usd = 0.0
+    verified_milestones_count = 0
+
+    for j in all_jobs:
+        if j.contract:
+            # If authorized in PayPal
+            if j.paypal_status == "AUTHORIZED":
+                total_authorized_usd += j.contract.total_amount
+            for m in j.contract.milestones:
+                total_captured_usd += (m.captured_amount or 0.0)
+                if m.status in ["approved", "completed", "partial_approval"]:
+                    verified_milestones_count += 1
+
+    return {
+        "total_jobs": total_jobs,
+        "active_jobs": active_jobs,
+        "completed_deals": completed_deals,
+        "total_authorized_usd": round(total_authorized_usd, 2),
+        "total_captured_usd": round(total_captured_usd, 2),
+        "verified_milestones_count": verified_milestones_count,
+        "live_paypal_connected": not paypal_service.is_mock_mode,
+    }
 
 
 @router.get("/{job_id}", response_model=dict)
@@ -168,6 +212,19 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
                             "file_path": s.file_path,
                             "content_text": s.content_text,
                             "submitted_at": s.submitted_at.isoformat(),
+                            "evaluations": [
+                                {
+                                    "id": ev.id,
+                                    "overall_score": ev.overall_score,
+                                    "verdict": ev.verdict,
+                                    "feedback_for_freelancer": ev.feedback_for_freelancer,
+                                    "per_criterion_results": ev.per_criterion_results,
+                                    "sandbox_evidence": ev.sandbox_evidence,
+                                    "injection_detected": ev.injection_detected,
+                                    "evaluated_at": ev.evaluated_at.isoformat(),
+                                }
+                                for ev in (s.evaluations or [])
+                            ],
                         }
                         for s in m.submissions
                     ],
@@ -202,6 +259,7 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
         "paypal_order_id": job.paypal_order_id,
         "paypal_authorization_id": job.paypal_authorization_id,
         "paypal_status": job.paypal_status,
+        "is_demo": bool(getattr(job, "is_demo", False)),
         "authorization_expires_at": job.authorization_expires_at,
         "created_at": job.created_at.isoformat(),
         "updated_at": job.updated_at.isoformat(),
@@ -213,6 +271,8 @@ async def get_job(job_id: str, db: AsyncSession = Depends(get_db)):
                 "agent_role": t.agent_role,
                 "message": t.message,
                 "proposal_summary": t.proposal_summary,
+                "proposed_price": t.proposed_price,
+                "price_change_reason": t.price_change_reason,
                 "contract_draft": t.contract_draft,
                 "agreed": t.agreed,
                 "timestamp": t.timestamp.isoformat(),
@@ -313,12 +373,17 @@ async def advance_negotiation(
             )
 
         # Save turn
+        proposed_price_val = getattr(agent_res, "proposed_price", None) or agent_res.contract.total_amount
+        price_reason_val = getattr(agent_res, "price_change_reason", None) or ""
+
         new_turn = NegotiationTurn(
             job_id=job.id,
             round_number=round_num,
             agent_role=role,
             message=agent_res.message,
             proposal_summary=agent_res.proposal_summary,
+            proposed_price=proposed_price_val,
+            price_change_reason=price_reason_val,
             contract_draft=agent_res.contract.model_dump(),
             agreed=agent_res.agreed,
         )

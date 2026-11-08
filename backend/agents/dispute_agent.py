@@ -118,3 +118,4 @@ Issue your binding ruling. The sum of amount_to_capture + amount_to_refund must 
         ruling_output.amount_to_refund = max(0.0, round(target - ruling_output.amount_to_capture, 2))
 
     return ruling_output
+

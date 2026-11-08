@@ -112,7 +112,7 @@ export default function NewJobPage() {
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">
-            {error}
+            {typeof error === "string" ? error : JSON.stringify(error)}
           </div>
         )}
 
@@ -124,6 +124,7 @@ export default function NewJobPage() {
             <input
               type="text"
               required
+              minLength={2}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Build Zero-Knowledge Rollup Settlement Contract"
@@ -137,6 +138,7 @@ export default function NewJobPage() {
             </label>
             <textarea
               required
+              minLength={2}
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -155,8 +157,8 @@ export default function NewJobPage() {
                 <input
                   type="number"
                   required
-                  min="50"
-                  step="10"
+                  min="1"
+                  step="any"
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
                   className="w-full pl-8 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
@@ -193,3 +195,4 @@ export default function NewJobPage() {
     </div>
   );
 }
+

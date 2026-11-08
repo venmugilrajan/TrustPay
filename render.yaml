@@ -15,10 +15,14 @@ services:
         value: false
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./trustpay.db
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
-        value: claude-3-5-sonnet-20241022
+        value: claude-sonnet-5-5
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
@@ -44,3 +48,4 @@ services:
           type: web
           name: trustpay-backend
           property: host
+

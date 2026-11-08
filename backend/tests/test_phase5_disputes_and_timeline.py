@@ -106,3 +106,4 @@ async def test_paypal_webhook_idempotency():
         res2 = await client.post("/api/webhooks/paypal", json=payload)
         assert res2.status_code == 200
         assert res2.json()["note"] == "duplicate_ignored"
+

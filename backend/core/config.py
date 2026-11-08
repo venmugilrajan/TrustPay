@@ -14,18 +14,29 @@ class Settings(BaseSettings):
     PORT: int = 8000
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Mock mode flag: default False so live path is primary
+    MOCK_MODE: bool = False
+
     DATABASE_URL: str = "sqlite+aiosqlite:///./trustpay.db"
 
-    ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-3-5-sonnet-20241022"
+    # Groq API Configuration
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
 
+    # Anthropic API Configuration
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL: str = "claude-sonnet-5-5"
+
+    # PayPal Sandbox Configuration
     PAYPAL_CLIENT_ID: str = ""
     PAYPAL_CLIENT_SECRET: str = ""
     PAYPAL_BASE_URL: str = "https://api-m.sandbox.paypal.com"
     PAYPAL_WEBHOOK_ID: str = ""
 
-    SANDBOX_MODE: str = "local"
+    # Sandbox Configuration
+    SANDBOX_MODE: str = "docker"
     SANDBOX_TIMEOUT_SECONDS: int = 30
+    ALLOW_LOCAL_SANDBOX_FALLBACK: bool = False
     HUMAN_OVERRIDE_ENABLED: bool = False
 
 

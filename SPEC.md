@@ -158,3 +158,4 @@ sequenceDiagram
 
 ## 6. Audit Trail & Real-time Logs
 Every state change, agent reasoning turn, PayPal API call, and verdict is stored in `audit_logs` and streamed/polled to the frontend timeline.
+

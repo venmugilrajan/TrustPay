@@ -48,8 +48,11 @@ class PayPalService:
 
     @property
     def is_mock_mode(self) -> bool:
-        """Determines if the service should operate in simulated sandbox mode."""
-        if self.force_mock:
+        """
+        Determines if the service should operate in simulated sandbox mode.
+        Runs live by default whenever real credentials are present and MOCK_MODE is false.
+        """
+        if self.force_mock or settings.MOCK_MODE:
             return True
         if not self.client_id or not self.client_secret:
             return True
@@ -475,3 +478,4 @@ class PayPalService:
 
 # Global default instance
 paypal_service = PayPalService()
+

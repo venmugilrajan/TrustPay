@@ -264,3 +264,4 @@ def test_acceptance_criteria_two():
         "per_criterion": [r.model_dump() for r in judge_output.per_criterion_results],
         "injection_detected": judge_output.injection_detected,
     }
+

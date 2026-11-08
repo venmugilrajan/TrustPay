@@ -47,20 +47,20 @@ export default function LandingPage() {
         {/* Stats Strip */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto border-t border-slate-200 dark:border-slate-800/80 pt-8">
           <div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-sky-400">0%</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Payment Default Risk</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-blue-600 dark:text-sky-400 font-mono">AUTHORIZE</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">PayPal Orders v2 Escrow</div>
           </div>
           <div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-teal-600 dark:text-teal-400">&lt; 30s</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Docker Test Verification</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-teal-600 dark:text-teal-400 font-mono">&lt; 30s Sandbox</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Isolated Test Verification</div>
           </div>
           <div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">100%</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">PayPal Orders v2 Auth</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">Min. 3 Rounds</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">AI Negotiation Consensus</div>
           </div>
           <div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">Binding</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">AI Dispute Arbitration</div>
+            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">Groq &amp; Claude</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Pydantic JSON Reasoning</div>
           </div>
         </div>
       </section>

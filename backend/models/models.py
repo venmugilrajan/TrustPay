@@ -36,6 +36,9 @@ class Job(Base):
     client_approved = Column(Boolean, default=False, nullable=False)
     freelancer_approved = Column(Boolean, default=False, nullable=False)
 
+    # Flag for pre-seeded demo records vs. user-created live transactions
+    is_demo = Column(Boolean, default=False, nullable=False)
+
     # PayPal Authorization Tracking
     paypal_order_id = Column(String(100), nullable=True)
     paypal_authorization_id = Column(String(100), nullable=True)
@@ -116,6 +119,8 @@ class NegotiationTurn(Base):
     agent_role = Column(String(50), nullable=False)  # "client" or "freelancer"
     message = Column(Text, nullable=False)
     proposal_summary = Column(Text, nullable=True)
+    proposed_price = Column(Float, nullable=True)
+    price_change_reason = Column(Text, nullable=True)
     contract_draft = Column(JSON, nullable=True)
     agreed = Column(Boolean, default=False, nullable=False)
     timestamp = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
@@ -183,3 +188,4 @@ class AuditLog(Base):
     timestamp = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
 
     job = relationship("Job", back_populates="audit_logs")
+

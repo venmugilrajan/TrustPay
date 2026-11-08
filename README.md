@@ -28,7 +28,7 @@ flowchart TD
         FreelancerUser["Freelancer (Worker)"]
     end
 
-    subgraph Agents ["Four Specialized AI Agents (Claude API)"]
+    subgraph Agents ["Four Specialized AI Agents (Groq & Claude APIs)"]
         CA["Client Agent<br/>(Scope & Budget Advocate)"]
         FA["Freelancer Agent<br/>(Fair Pay & Timeline Advocate)"]
         Judge["Judge Agent<br/>(Criteria & Test Validator)"]
@@ -112,7 +112,11 @@ cp .env.example .env
 ```
 Edit `.env` (TrustPay includes simulated sandbox fallbacks if keys are not yet configured):
 ```env
+# AI Provider (Groq high-speed inference or Claude)
+GROQ_API_KEY=your_groq_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
+
+# PayPal Developer Sandbox Credentials
 PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_sandbox_client_secret
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
