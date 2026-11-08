@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { loginDemoUser, getStoredToken } from "@/lib/api";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/client", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -26,6 +27,13 @@ const NAV_ITEMS = [
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    // Ensure Client JWT token is set for API calls
+    if (!getStoredToken()) {
+      loginDemoUser("client_default", "client").catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">

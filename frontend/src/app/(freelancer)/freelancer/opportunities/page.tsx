@@ -51,11 +51,13 @@ export default function FreelancerOpportunitiesPage() {
       ),
     },
     {
-      header: "Budget (Max Escrow)",
+      header: "Budget (Public)",
       align: "right" as const,
       cell: (job: Job) => (
         <span className="font-serif font-bold text-sm text-content-primary">
-          ${(job.contract?.total_amount || job.max_budget).toFixed(2)} USD
+          {job.contract?.total_amount
+            ? `$${Number(job.contract.total_amount).toFixed(2)} USD`
+            : job.public_budget_estimate || "Negotiable"}
         </span>
       ),
     },

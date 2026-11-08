@@ -189,7 +189,10 @@ async def get_job_stats(db: AsyncSession = Depends(get_db)):
     from backend.services.paypal_service import paypal_service
 
     # Query all jobs and milestones
-    jobs_res = await db.execute(select(Job).options(selectinload(Job.contract).selectinload(Contract.milestones)))
+    jobs_res = await db.execute(select(Job).options(
+        selectinload(Job.active_contract).selectinload(Contract.milestones),
+        selectinload(Job.contracts).selectinload(Contract.milestones),
+    ))
     all_jobs = jobs_res.scalars().all()
 
     total_jobs = len(all_jobs)

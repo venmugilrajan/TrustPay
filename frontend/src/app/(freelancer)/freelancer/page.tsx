@@ -249,7 +249,9 @@ export default function FreelancerDashboardPage() {
 
                 <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between">
                   <span className="font-serif font-bold text-base text-content-primary">
-                    ${(job.contract?.total_amount || job.max_budget).toFixed(2)} USD
+                    {job.contract?.total_amount
+                      ? `$${Number(job.contract.total_amount).toFixed(2)} USD`
+                      : job.public_budget_estimate || "Negotiable"}
                   </span>
                   <span className="text-xs text-primary font-medium flex items-center gap-1">
                     <span>Manage</span>

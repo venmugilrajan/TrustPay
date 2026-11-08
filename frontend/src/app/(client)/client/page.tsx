@@ -98,7 +98,7 @@ export default function ClientDashboardPage() {
       align: "right" as const,
       cell: (job: Job) => (
         <span className="font-serif font-bold text-sm text-content-primary">
-          ${(job.contract?.total_amount || job.max_budget).toFixed(2)}
+          ${Number(job.contract?.total_amount || job.max_budget || 0).toFixed(2)}
         </span>
       ),
     },

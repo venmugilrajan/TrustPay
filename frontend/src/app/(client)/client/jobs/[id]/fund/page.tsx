@@ -42,7 +42,7 @@ export default function ClientFundEscrowPage() {
 
   if (!job) return null;
 
-  const totalAmount = job.contract?.total_amount || job.max_budget;
+  const totalAmount = Number(job.contract?.total_amount || job.max_budget || 0);
   const currency = job.contract?.currency || "USD";
 
   return (

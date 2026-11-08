@@ -260,7 +260,7 @@ export default function FreelancerContractWorkPage() {
               Total Contract Escrow
             </span>
             <span className="text-xl font-bold font-serif text-primary">
-              ${(job.contract?.total_amount || job.max_budget).toFixed(2)} USD
+              ${Number(job.contract?.total_amount || job.max_budget || 0).toFixed(2)} USD
             </span>
           </div>
 

@@ -195,7 +195,7 @@ export default function ClientContractDetailPage() {
             {job.status === "approved" && (
               <Link href={`/client/jobs/${job.id}/fund`}>
                 <Button size="sm" icon={<Lock className="w-4 h-4" />}>
-                  Fund PayPal Escrow (${(job.contract?.total_amount || job.max_budget).toFixed(2)})
+                  Fund PayPal Escrow (${Number(job.contract?.total_amount || job.max_budget || 0).toFixed(2)})
                 </Button>
               </Link>
             )}
@@ -214,7 +214,7 @@ export default function ClientContractDetailPage() {
               Total Contract Value
             </span>
             <span className="text-xl font-bold font-serif text-content-primary">
-              ${(job.contract?.total_amount || job.max_budget).toFixed(2)} USD
+              ${Number(job.contract?.total_amount || job.max_budget || 0).toFixed(2)} USD
             </span>
           </div>
 

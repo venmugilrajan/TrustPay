@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   Code2,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { loginDemoUser, getStoredToken } from "@/lib/api";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/freelancer", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -27,6 +28,11 @@ const NAV_ITEMS = [
 export default function FreelancerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    // Ensure Freelancer JWT token is set for API calls
+    loginDemoUser("freelancer_default", "freelancer").catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
