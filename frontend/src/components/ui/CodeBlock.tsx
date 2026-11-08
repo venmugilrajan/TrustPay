@@ -25,7 +25,7 @@ export default function CodeBlock({
   };
 
   return (
-    <div className={`rounded-btn border border-border-strong overflow-hidden bg-[#221D16] text-[#EFE7D6] ${className}`}>
+    <div className={`rounded-btn border border-border-subtle overflow-hidden bg-slate-900 text-slate-100 ${className}`}>
       <div
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between px-3.5 py-2.5 bg-[#1B1611] border-b border-[#352D24] cursor-pointer select-none hover:bg-[#251F18] transition-colors"

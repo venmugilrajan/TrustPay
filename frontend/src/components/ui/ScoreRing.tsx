@@ -35,7 +35,7 @@ export default function ScoreRing({
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#EFE7D6"
+            stroke="#E8EAEE"
             strokeWidth={strokeWidth}
             fill="transparent"
           />
