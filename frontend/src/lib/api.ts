@@ -1,7 +1,11 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
+let rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+if (rawBase.endsWith("/")) rawBase = rawBase.slice(0, -1);
+export const API_BASE = rawBase.endsWith("/api") ? rawBase : `${rawBase}/api`;
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  const finalPath = cleanPath.startsWith("/api/") ? cleanPath.slice(4) : cleanPath;
+  const fullUrl = url.startsWith("http") ? url : `${API_BASE}${finalPath}`;
   const res = await fetch(fullUrl, {
     ...options,
     headers: {
@@ -219,7 +223,7 @@ export async function authorizePayment(id: string, orderId?: string, allowSandbo
 }
 
 export async function submitMilestoneWork(jobId: string, milestoneId: string, formData: FormData): Promise<any> {
-  const fullUrl = `${process.env.NEXT_PUBLIC_API_URL || "/api"}/jobs/${jobId}/milestones/${milestoneId}/submit`;
+  const fullUrl = `${API_BASE}/jobs/${jobId}/milestones/${milestoneId}/submit`;
   const res = await fetch(fullUrl, {
     method: "POST",
     body: formData,
