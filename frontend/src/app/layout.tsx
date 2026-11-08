@@ -1,5 +1,23 @@
 import "./globals.css";
-import Navbar from "@/components/Navbar";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
 
 export const metadata = {
   title: "TrustPay — Autonomous AI Escrow & Milestone Verification",
@@ -12,12 +30,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-slate-50 dark:bg-[#0a0f1d] text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-500 selection:text-white">
-        <Navbar />
-        <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-screen bg-cream text-content-primary font-sans antialiased selection:bg-primary-subtle selection:text-primary">
+        {children}
       </body>
     </html>
   );
 }
-

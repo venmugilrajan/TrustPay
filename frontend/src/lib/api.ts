@@ -170,3 +170,87 @@ export interface SystemStats {
   verified_milestones_count: number;
   live_paypal_connected: boolean;
 }
+
+// API Helper Methods
+export async function getJobs(): Promise<Job[]> {
+  return fetchJson<Job[]>("/jobs");
+}
+
+export async function getJob(id: string): Promise<Job> {
+  return fetchJson<Job>(`/jobs/${id}`);
+}
+
+export async function createJob(data: {
+  title: string;
+  description: string;
+  max_budget: number;
+  currency?: string;
+  deadline: string;
+}): Promise<Job> {
+  return fetchJson<Job>("/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function stepNegotiation(id: string, runAll: boolean = false): Promise<any> {
+  return fetchJson(`/jobs/${id}/negotiate?run_all=${runAll}`, { method: "POST" });
+}
+
+export async function approveContract(id: string, role: "client" | "freelancer"): Promise<any> {
+  return fetchJson(`/jobs/${id}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function createFundOrder(id: string): Promise<{ order_id: string; approve_url?: string }> {
+  return fetchJson(`/jobs/${id}/fund`, { method: "POST" });
+}
+
+export async function authorizePayment(id: string, orderId?: string, allowSandboxSimulation: boolean = true): Promise<any> {
+  return fetchJson(`/jobs/${id}/authorize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_id: orderId, allow_sandbox_simulation: allowSandboxSimulation }),
+  });
+}
+
+export async function submitMilestoneWork(jobId: string, milestoneId: string, formData: FormData): Promise<any> {
+  const fullUrl = `${process.env.NEXT_PUBLIC_API_URL || "/api"}/jobs/${jobId}/milestones/${milestoneId}/submit`;
+  const res = await fetch(fullUrl, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || "Failed to submit deliverable");
+  }
+  return res.json();
+}
+
+export async function fileDispute(
+  jobId: string,
+  milestoneId: string,
+  data: { raised_by: "client" | "freelancer"; reason: string }
+): Promise<any> {
+  return fetchJson(`/jobs/${jobId}/milestones/${milestoneId}/dispute`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getStats(): Promise<SystemStats> {
+  return fetchJson<SystemStats>("/stats");
+}
+
+export async function seedDemo(): Promise<Job> {
+  return fetchJson<Job>("/demo/seed", { method: "POST" });
+}
+
+export async function resetDemo(): Promise<any> {
+  return fetchJson("/demo/reset", { method: "POST" });
+}
