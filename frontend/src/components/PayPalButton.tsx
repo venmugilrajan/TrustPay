@@ -132,7 +132,7 @@ export default function PayPalButton({
         </div>
       </div>
 
-      <p className="text-xs text-content-secondary leading-relaxed bg-cream-100 p-3 rounded-btn border border-border-subtle">
+      <p className="text-xs text-content-secondary leading-relaxed bg-surface-subtle p-3 rounded-btn border border-border-subtle">
         Money is held safely by PayPal and only released to the freelancer when milestones pass AI Judge verification.
       </p>
 
