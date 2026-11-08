@@ -29,10 +29,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Ensure Client JWT token is set for API calls
-    if (!getStoredToken()) {
-      loginDemoUser("client_default", "client").catch(() => {});
-    }
+    // Ensure Client JWT token is set for API calls whenever visiting the Client portal
+    loginDemoUser("client_default", "client").catch(() => {});
   }, []);
 
   return (

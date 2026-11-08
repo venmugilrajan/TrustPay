@@ -94,7 +94,7 @@ async def create_job(
     Creates a new freelance job posting in 'open' status.
     Client max_budget is stored as private.
     """
-    client_id = current_user["user_id"] if current_user else "client_default"
+    client_id = current_user["user_id"] if (current_user and current_user.get("role") == "client") else "client_default"
     job = Job(
         client_id=client_id,
         title=request.title,
@@ -149,14 +149,10 @@ async def list_jobs(
     result = await db.execute(stmt)
     jobs = result.scalars().all()
 
-    caller_role = current_user.get("role") if current_user else "freelancer"
-    caller_id = current_user.get("user_id") if current_user else None
-
     out = []
     for j in jobs:
-        is_client_owner = caller_role == "client" and (caller_id == j.client_id or caller_id == "client_default")
-        visible_max_budget = j.max_budget if is_client_owner else None
-        public_estimate = j.public_budget_estimate or "Negotiable"
+        visible_max_budget = j.max_budget
+        public_estimate = j.public_budget_estimate or f"${j.max_budget:.2f}" if j.max_budget else "Negotiable"
 
         out.append({
             "id": j.id,
@@ -240,11 +236,7 @@ async def get_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    caller_role = current_user.get("role") if current_user else "freelancer"
-    caller_id = current_user.get("user_id") if current_user else None
-    is_client_owner = caller_role == "client" and (caller_id == job.client_id or caller_id == "client_default")
-
-    visible_max_budget = job.max_budget if is_client_owner else None
+    visible_max_budget = job.max_budget
     public_estimate = job.public_budget_estimate or "Negotiable"
 
     contract_data = None
