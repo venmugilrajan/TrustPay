@@ -3,17 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --bg-canvas: #F6F0E4;
-  --bg-surface: #FFFDF8;
-  --bg-subtle: #EFE7D6;
-  --border-subtle: #E3D8C3;
-  --border-strong: #CDBFA6;
-  --text-primary: #2A2118;
-  --text-secondary: #6F6150;
-  --text-muted: #9A8B77;
-  --primary-base: #24493D;
-  --primary-hover: #1B3A30;
-  --text-on-primary: #FFFDF8;
+  --bg-canvas: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F7F8FA;
+  --border-subtle: #E8EAEE;
+  --border-strong: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --primary-base: #0B1F3A;
+  --primary-hover: #12305A;
+  --text-on-primary: #FFFFFF;
+  --accent-emerald: #0E9F6E;
+  --accent-gold: #C9A24B;
 }
 
 body {
@@ -27,24 +29,24 @@ body {
 
 /* Accessible focus ring */
 *:focus-visible {
-  outline: 2px solid #24493D;
+  outline: 2px solid #0B1F3A;
   outline-offset: 2px;
 }
 
-/* Subtle fintech scrollbar */
+/* Crisp fintech scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #EFE7D6;
+  background: #F7F8FA;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CDBFA6;
+  background: #D1D5DB;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9A8B77;
+  background: #94A3B8;
 }
 
 /* Base link styling */

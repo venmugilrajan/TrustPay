@@ -177,12 +177,18 @@ export interface AuditLog {
 
 export interface Job {
   id: string;
+  client_id?: string;
   title: string;
   description: string;
-  max_budget: number;
+  deliverables?: string;
+  max_budget?: number | null;
+  public_budget_estimate?: string;
   currency: string;
   deadline: string;
+  priorities?: string;
+  must_haves?: string;
   status: string;
+  applications_count?: number;
   is_demo?: boolean;
   client_approved: boolean;
   freelancer_approved: boolean;
@@ -192,6 +198,7 @@ export interface Job {
   authorization_expires_at?: string;
   created_at: string;
   contract?: Contract;
+  applications?: Application[];
   negotiation_turns?: NegotiationTurn[];
   audit_logs?: AuditLog[];
 }
