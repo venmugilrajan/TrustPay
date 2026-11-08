@@ -32,3 +32,4 @@ async def demo_login(req: DemoLoginRequest):
         user_id=req.user_id,
         role=req.role,
     )
+

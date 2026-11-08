@@ -360,3 +360,4 @@ def verify_signature(msg_hash, signature, pubkey):
         eval_data = sub_res.json()
         assert "overall_score" in eval_data
         assert eval_data["verdict"] in ("pass", "partial", "fail")
+

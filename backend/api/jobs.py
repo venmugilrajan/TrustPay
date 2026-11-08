@@ -1,4 +1,3 @@
-import uuid
 import logging
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
@@ -9,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from backend.core.config import settings
 from backend.core.database import get_db
-from backend.core.auth import get_current_user, get_optional_user
+from backend.core.auth import get_optional_user
 from backend.models.models import (
     Job,
     Application,
@@ -18,15 +17,11 @@ from backend.models.models import (
     AcceptanceCriterion,
     NegotiationTurn,
     DeliverableSubmission,
-    JudgeEvaluation,
     AuditLog,
 )
 from backend.schemas.schemas import (
     JobCreateRequest,
-    JobResponse,
-    ContractSchema,
     ApprovalRequest,
-    NegotiationTurnSchema,
 )
 from backend.agents.client_agent import run_client_agent_turn
 from backend.agents.freelancer_agent import run_freelancer_agent_turn

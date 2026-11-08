@@ -79,3 +79,4 @@ async def get_optional_user(
         return {"user_id": payload.get("sub"), "role": payload.get("role")}
     except Exception:
         return None
+
