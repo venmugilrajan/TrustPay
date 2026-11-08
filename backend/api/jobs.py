@@ -434,10 +434,13 @@ async def advance_negotiation(
                 history=history,
             )
         else:
+            # Fallback floor for legacy direct job negotiation: 80% min floor, preferred target at max_budget
+            legacy_floor = round(job.max_budget * 0.8, 2)
             agent_res = await run_freelancer_agent_turn(
                 job_title=job.title,
                 job_description=job.description,
-                max_budget=job.max_budget,
+                min_price=legacy_floor,
+                preferred_price=job.max_budget,
                 deadline=job.deadline,
                 round_number=round_num,
                 history=history,
