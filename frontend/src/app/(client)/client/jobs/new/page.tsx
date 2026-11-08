@@ -139,10 +139,7 @@ export default function PostJobWizardPage() {
         deadline,
       });
 
-      // 2. Kick off negotiation in background and redirect immediately to contract overview
-      stepNegotiation(newJob.id, true).catch((err) => console.warn("Background negotiation:", err));
-
-      // 3. Forward client to the contract detail view
+      // 2. Forward client to the job detail / applications view
       router.push(`/client/jobs/${newJob.id}`);
     } catch (err: any) {
       setError(err.message || "Failed to create project");
