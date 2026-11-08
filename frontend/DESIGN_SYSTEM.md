@@ -63,3 +63,4 @@ TrustPay uses a calm, tactile, editorial fintech aesthetic inspired by Stripe Cl
 - `CopyableId`: Monospace transaction ID with one-click copy button.
 - `PageHeader`: Breadcrumbs, title, subtitle, and primary action slot.
 - `NextStepCard`: "What happens next?" explanatory card for non-technical users.
+

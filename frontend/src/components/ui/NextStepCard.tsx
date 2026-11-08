@@ -24,3 +24,4 @@ export default function NextStepCard({ stepText, className = "" }: NextStepCardP
     </Card>
   );
 }
+

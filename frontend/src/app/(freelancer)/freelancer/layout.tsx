@@ -158,3 +158,4 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
     </div>
   );
 }
+

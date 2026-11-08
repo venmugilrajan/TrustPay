@@ -189,3 +189,4 @@ export default function FreelancerEarningsPage() {
     </div>
   );
 }
+
