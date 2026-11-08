@@ -139,12 +139,8 @@ export default function PostJobWizardPage() {
         deadline,
       });
 
-      // 2. Automatically kick off negotiation so turns exist immediately
-      try {
-        await stepNegotiation(newJob.id, true);
-      } catch (negErr) {
-        console.warn("Autonomous negotiation kickoff:", negErr);
-      }
+      // 2. Kick off negotiation in background and redirect immediately to contract overview
+      stepNegotiation(newJob.id, true).catch((err) => console.warn("Background negotiation:", err));
 
       // 3. Forward client to the contract detail view
       router.push(`/client/jobs/${newJob.id}`);
