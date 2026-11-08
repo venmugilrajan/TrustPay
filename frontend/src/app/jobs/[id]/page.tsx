@@ -59,6 +59,9 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     try {
       const data = await fetchJson<Job>(`/jobs/${jobId}`);
       setJob(data);
+      if (data.status === "negotiating" && !data.contract?.milestones?.length) {
+        setActiveTab("negotiation");
+      }
       if (data.contract?.milestones?.length && !selectedMilestone) {
         setSelectedMilestone(data.contract.milestones[0].id);
       }
@@ -418,10 +421,25 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-              <p className="text-sm text-slate-400">
-                Milestones are being negotiated by the agents. Switch to the AI Agent Dialogue tab to watch!
+            <div className="p-10 text-center rounded-2xl bg-white dark:bg-[#131b2e] border border-blue-500/20 shadow-lg space-y-4">
+              <Sparkles className="w-8 h-8 text-blue-500 mx-auto animate-pulse" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                AI Negotiation in Progress
+              </h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                The Client Agent and Freelancer Agent are negotiating scope, milestones, and payment terms in alternating rounds.
               </p>
+              <button
+                onClick={() => {
+                  setActiveTab("negotiation");
+                  handleNegotiate(true);
+                }}
+                disabled={negotiating}
+                className="px-6 py-3 text-xs font-bold uppercase tracking-wider rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition inline-flex items-center space-x-2 shadow-lg shadow-blue-500/20"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{negotiating ? "Agents Negotiating Deal..." : "Start AI Negotiation Dialogue →"}</span>
+              </button>
             </div>
           )}
 

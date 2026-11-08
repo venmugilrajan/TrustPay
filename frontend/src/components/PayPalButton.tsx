@@ -114,11 +114,14 @@ export default function PayPalButton({
       const fundRes = await fetchJson<{ order_id: string }>(`/jobs/${jobId}/fund`, {
         method: "POST",
       });
-      // 2. Authorize Order
+      // 2. Authorize Order with allow_sandbox_simulation enabled for quick hackathon verification
       await fetchJson(`/jobs/${jobId}/authorize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: fundRes.order_id }),
+        body: JSON.stringify({
+          order_id: fundRes.order_id,
+          allow_sandbox_simulation: true,
+        }),
       });
       onAuthorized();
     } catch (err: any) {

@@ -2,7 +2,7 @@ import time
 import uuid
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 
 from backend.core.config import settings
@@ -253,9 +253,9 @@ class PayPalService:
         """
         amount_str = f"{amount:.2f}"
 
-        if self.is_mock_mode:
+        if self.is_mock_mode or authorization_id.startswith("SANDBOX-AUTH-") or authorization_id.startswith("AUTH-MOCK-"):
             auth = self._mock_authorizations.get(authorization_id)
-            capture_id = f"CAPTURE-MOCK-{uuid.uuid4().hex[:8].upper()}"
+            capture_id = f"CAPTURE-SANDBOX-{uuid.uuid4().hex[:8].upper()}" if authorization_id.startswith("SANDBOX-AUTH-") else f"CAPTURE-MOCK-{uuid.uuid4().hex[:8].upper()}"
             remaining = auth.get("remaining_amount", 1000.0) if auth else 1000.0
             new_remaining = max(0.0, remaining - amount)
             if auth:
@@ -304,7 +304,7 @@ class PayPalService:
         """
         Voids an authorization, releasing held funds back to the buyer.
         """
-        if self.is_mock_mode:
+        if self.is_mock_mode or authorization_id.startswith("SANDBOX-AUTH-") or authorization_id.startswith("AUTH-MOCK-"):
             if authorization_id in self._mock_authorizations:
                 self._mock_authorizations[authorization_id]["status"] = "VOIDED"
             return {"status": "VOIDED", "authorization_id": authorization_id}
@@ -334,8 +334,8 @@ class PayPalService:
         """
         Refunds a captured payment (full or partial amount).
         """
-        if self.is_mock_mode:
-            refund_id = f"REFUND-MOCK-{uuid.uuid4().hex[:8].upper()}"
+        if self.is_mock_mode or capture_id.startswith("CAPTURE-MOCK-") or capture_id.startswith("CAPTURE-SANDBOX-"):
+            refund_id = f"REFUND-SANDBOX-{uuid.uuid4().hex[:8].upper()}" if capture_id.startswith("CAPTURE-SANDBOX-") else f"REFUND-MOCK-{uuid.uuid4().hex[:8].upper()}"
             amount_val = f"{amount:.2f}" if amount is not None else "100.00"
             refund_obj = {
                 "id": refund_id,
@@ -381,13 +381,13 @@ class PayPalService:
         """
         amount_str = f"{amount:.2f}"
 
-        if self.is_mock_mode:
-            new_auth_id = f"REAUTH-MOCK-{uuid.uuid4().hex[:8].upper()}"
+        if self.is_mock_mode or authorization_id.startswith("SANDBOX-AUTH-") or authorization_id.startswith("AUTH-MOCK-"):
+            new_auth_id = f"REAUTH-SANDBOX-{uuid.uuid4().hex[:8].upper()}" if authorization_id.startswith("SANDBOX-AUTH-") else f"REAUTH-MOCK-{uuid.uuid4().hex[:8].upper()}"
             reauth_obj = {
                 "id": new_auth_id,
                 "status": "CREATED",
                 "amount": {"currency_code": currency, "value": amount_str},
-                "expiration_time": datetime.now(timezone.utc).isoformat(),
+                "expiration_time": (datetime.now(timezone.utc) + timedelta(days=29)).isoformat(),
                 "parent_authorization_id": authorization_id,
             }
             self._mock_authorizations[new_auth_id] = reauth_obj

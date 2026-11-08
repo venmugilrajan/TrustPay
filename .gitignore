@@ -1,7 +1,10 @@
 # Secrets & Environments
 .env
 *.env
+.env*
+frontend/.env*
 !.env.example
+!frontend/.env.example
 
 # Python
 __pycache__/

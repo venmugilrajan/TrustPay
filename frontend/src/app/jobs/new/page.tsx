@@ -61,6 +61,13 @@ export default function NewJobPage() {
         }),
       });
 
+      // Automatically kick off negotiation rounds so the contract and milestones populate
+      try {
+        await fetchJson(`/jobs/${res.id}/negotiate?run_all=true`, { method: "POST" });
+      } catch (negErr) {
+        console.warn("Auto-negotiation step:", negErr);
+      }
+
       router.push(`/jobs/${res.id}`);
     } catch (err: any) {
       setError(err.message || "Failed to create job.");
