@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -15,6 +15,8 @@ import {
   ArrowRight,
   MessageSquare,
   Lock,
+  History,
+  RotateCcw,
 } from "lucide-react";
 import {
   PageHeader,
@@ -48,16 +50,21 @@ export default function FreelancerContractWorkPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
 
   // Approval state
   const [approving, setApproving] = useState(false);
 
-  // Submission form state
+  // Submission form state & refs
   const [submissionFile, setSubmissionFile] = useState<File | null>(null);
   const [submissionText, setSubmissionText] = useState("");
   const [submissionType, setSubmissionType] = useState<"code" | "document" | "image" | "url">("code");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
+  const submissionFormRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Dispute modal state
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
@@ -118,12 +125,28 @@ export default function FreelancerContractWorkPage() {
       await submitMilestoneWork(jobId, selectedMilestoneId, formData);
       setSubmissionText("");
       setSubmissionFile(null);
+      setIsResubmitting(false);
+      setSelectedSubmissionId(null); // automatically displays newest version!
       await loadJobData();
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit deliverable");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleFixAndResubmit = (previousContent?: string, previousType?: string) => {
+    setIsResubmitting(true);
+    if (!submissionText && previousContent) {
+      setSubmissionText(previousContent);
+    }
+    if (previousType && (["code", "document", "image", "url"] as const).includes(previousType as any)) {
+      setSubmissionType(previousType as any);
+    }
+    submissionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 250);
   };
 
   const handleOpenDispute = (m: Milestone) => {
@@ -168,15 +191,25 @@ export default function FreelancerContractWorkPage() {
   const activeMilestone =
     milestones.find((m) => m.id === selectedMilestoneId) || milestones[0];
 
-  const latestSubmission =
-    activeMilestone?.submissions && activeMilestone.submissions.length > 0
-      ? activeMilestone.submissions[activeMilestone.submissions.length - 1]
-      : null;
+  // Sort submissions descending by version (e.g., version 2, version 1)
+  const sortedSubmissions = activeMilestone?.submissions
+    ? [...activeMilestone.submissions].sort((a, b) => (b.version || 0) - (a.version || 0))
+    : [];
 
-  const latestEvaluation =
-    latestSubmission?.evaluations && latestSubmission.evaluations.length > 0
-      ? latestSubmission.evaluations[latestSubmission.evaluations.length - 1]
-      : null;
+  // Active submission is the user-selected version or defaults to latest (index 0)
+  const activeSubmission =
+    (selectedSubmissionId && sortedSubmissions.find((s) => s.id === selectedSubmissionId)) ||
+    sortedSubmissions[0] ||
+    null;
+
+  // Sort evaluations descending by evaluated_at
+  const sortedEvaluations = activeSubmission?.evaluations
+    ? [...activeSubmission.evaluations].sort(
+        (a, b) => new Date(b.evaluated_at || 0).getTime() - new Date(a.evaluated_at || 0).getTime()
+      )
+    : [];
+
+  const activeEvaluation = sortedEvaluations[0] || null;
 
   const nextStepExplanation = () => {
     switch (job.status) {
@@ -385,104 +418,207 @@ export default function FreelancerContractWorkPage() {
               </Card>
 
               {/* Deliverable Submission Form */}
-              <Card padding="md" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-serif font-bold text-content-primary">
-                    Submit Deliverable to AI Judge
-                  </h3>
-                  <div className="flex items-center gap-1 text-xs">
-                    {(["code", "document", "image", "url"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setSubmissionType(t)}
-                        className={`px-2.5 py-1 rounded text-xs capitalize transition-colors ${
-                          submissionType === t
-                            ? "bg-primary text-primary-foreground font-semibold"
-                            : "bg-surface-subtle text-content-secondary hover:text-content-primary"
-                        }`}
+              <div ref={submissionFormRef}>
+                <Card
+                  padding="md"
+                  className={`space-y-4 transition-all ${
+                    isResubmitting ? "ring-2 ring-accent border-accent/40 bg-accent/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-serif font-bold text-content-primary">
+                        {isResubmitting
+                          ? `Fix & Resubmit Revision #${sortedSubmissions.length + 1}`
+                          : sortedSubmissions.length > 0
+                          ? `Submit Revision #${sortedSubmissions.length + 1} to AI Judge`
+                          : "Submit Deliverable to AI Judge"}
+                      </h3>
+                      {isResubmitting && (
+                        <p className="text-xs text-accent font-medium mt-0.5">
+                          Address the AI Judge&apos;s feedback below and submit your updated deliverables.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      {(["code", "document", "image", "url"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setSubmissionType(t)}
+                          className={`px-2.5 py-1 rounded text-xs capitalize transition-colors ${
+                            submissionType === t
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "bg-surface-subtle text-content-secondary hover:text-content-primary"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {submitError && (
+                    <div className="p-3 text-xs rounded-btn bg-danger-bg border border-danger-border text-danger">
+                      {submitError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmitDeliverable} className="space-y-4">
+                    <FileDropzone
+                      onFileSelect={(file) => setSubmissionFile(file)}
+                      selectedFile={submissionFile}
+                    />
+
+                    <Textarea
+                      ref={textareaRef}
+                      label="Deliverable Code / Text / URL"
+                      placeholder="Paste code implementation, repository URL, or summary of deliverables here..."
+                      helperText="Submissions are isolated and tested automatically in a Docker sandbox by the AI Judge."
+                      rows={6}
+                      value={submissionText}
+                      onChange={(e) => setSubmissionText(e.target.value)}
+                    />
+
+                    <div className="pt-2 flex items-center justify-between">
+                      <span className="text-xs text-content-muted">
+                        {submitting ? "Running sandbox test harness..." : "Judged against criteria"}
+                      </span>
+                      <Button
+                        type="submit"
+                        size="md"
+                        loading={submitting}
+                        icon={<Upload className="w-4 h-4" />}
                       >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {submitError && (
-                  <div className="p-3 text-xs rounded-btn bg-danger-bg border border-danger-border text-danger">
-                    {submitError}
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitDeliverable} className="space-y-4">
-                  <FileDropzone
-                    onFileSelect={(file) => setSubmissionFile(file)}
-                    selectedFile={submissionFile}
-                  />
-
-                  <Textarea
-                    label="Deliverable Code / Text / URL"
-                    placeholder="Paste code implementation, repository URL, or summary of deliverables here..."
-                    helperText="Submissions are isolated and tested automatically in a Docker sandbox by the AI Judge."
-                    rows={6}
-                    value={submissionText}
-                    onChange={(e) => setSubmissionText(e.target.value)}
-                  />
-
-                  <div className="pt-2 flex items-center justify-between">
-                    <span className="text-xs text-content-muted">
-                      {submitting ? "Running sandbox test harness..." : "Judged against criteria"}
-                    </span>
-                    <Button
-                      type="submit"
-                      size="md"
-                      loading={submitting}
-                      icon={<Upload className="w-4 h-4" />}
-                    >
-                      {submitting ? "Testing Deliverables..." : "Submit for Verification"}
-                    </Button>
-                  </div>
-                </form>
-              </Card>
+                        {submitting
+                          ? "Testing Deliverables..."
+                          : sortedSubmissions.length > 0
+                          ? `Submit Revision #${sortedSubmissions.length + 1}`
+                          : "Submit for Verification"}
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              </div>
 
               {/* AI Judge Verdict View */}
-              {latestEvaluation && (
+              {activeEvaluation && (
                 <Card padding="lg" className="space-y-6 bg-surface shadow-soft border-border-strong">
+                  {/* Revision Switcher when multiple submissions exist */}
+                  {sortedSubmissions.length > 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-btn bg-surface-subtle border border-border-subtle">
+                      <div className="flex items-center gap-2">
+                        <History className="w-3.5 h-3.5 text-content-secondary" />
+                        <span className="text-xs font-semibold text-content-primary">
+                          Submission History:
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {sortedSubmissions.map((s) => {
+                            const isLatest = s.version === sortedSubmissions[0].version;
+                            const isSelected = activeSubmission?.id === s.id;
+                            const evalStatus = s.evaluations?.[0]?.verdict;
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setSelectedSubmissionId(s.id)}
+                                className={`px-2.5 py-1 rounded text-xs font-mono transition-colors flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                    : "bg-surface text-content-secondary hover:text-content-primary border border-border-subtle"
+                                }`}
+                              >
+                                <span>v{s.version}</span>
+                                {isLatest && <span className="text-[10px] font-sans uppercase font-bold">(Latest)</span>}
+                                {evalStatus && (
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      evalStatus === "pass"
+                                        ? "bg-success"
+                                        : evalStatus === "partial"
+                                        ? "bg-warning"
+                                        : "bg-danger"
+                                    }`}
+                                  />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-content-muted">
+                        Viewing Revision #{activeSubmission?.version || 1}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-serif font-bold text-content-primary">
-                      AI Judge Verdict & Verification
-                    </h3>
-                    <StatusChip status={latestEvaluation.verdict} />
+                    <div>
+                      <h3 className="text-base font-serif font-bold text-content-primary">
+                        AI Judge Verdict & Verification
+                      </h3>
+                      {activeSubmission && (
+                        <p className="text-xs text-content-muted">
+                          Evaluation for Revision #{activeSubmission.version}
+                        </p>
+                      )}
+                    </div>
+                    <StatusChip status={activeEvaluation.verdict} />
                   </div>
 
+                  {/* Submitted Content Preview */}
+                  {activeSubmission && (
+                    <div className="p-3.5 rounded-card bg-cream-100 border border-border space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-content-primary flex items-center gap-1.5">
+                          <FileCode className="w-3.5 h-3.5 text-primary" />
+                          Deliverable Evaluated (Revision #{activeSubmission.version} - {activeSubmission.submission_type}):
+                        </span>
+                        <span className="text-[11px] text-content-muted">
+                          {new Date(activeSubmission.submitted_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {activeSubmission.file_path && (
+                        <p className="text-xs font-mono text-content-secondary">
+                          File: {activeSubmission.file_path.split(/[\\/]/).pop()}
+                        </p>
+                      )}
+                      {activeSubmission.content_text && (
+                        <pre className="p-2.5 rounded bg-surface border border-border-subtle text-xs font-mono text-content-primary whitespace-pre-wrap max-h-40 overflow-y-auto">
+                          {activeSubmission.content_text}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-6 p-5 rounded-card bg-surface-subtle border border-border-subtle">
-                    <ScoreRing score={latestEvaluation.overall_score} size={88} />
+                    <ScoreRing score={activeEvaluation.overall_score} size={88} />
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-content-primary">
                           Judge Verdict Feedback:
                         </span>
                         <span className="font-serif font-bold text-sm text-primary">
-                          {latestEvaluation.overall_score >= 0.85
+                          {activeEvaluation.overall_score >= 0.85
                             ? `Full Release ($${activeMilestone.amount.toFixed(2)})`
-                            : latestEvaluation.overall_score >= 0.5
-                            ? `Partial Release ($${(activeMilestone.amount * latestEvaluation.overall_score).toFixed(2)})`
+                            : activeEvaluation.overall_score >= 0.5
+                            ? `Partial Release ($${(activeMilestone.amount * activeEvaluation.overall_score).toFixed(2)})`
                             : "No Payout Released"}
                         </span>
                       </div>
                       <p className="text-xs text-content-secondary leading-relaxed italic">
-                        &quot;{latestEvaluation.feedback_for_freelancer}&quot;
+                        &quot;{activeEvaluation.feedback_for_freelancer}&quot;
                       </p>
                     </div>
                   </div>
 
                   {/* Per-Criterion Results */}
-                  {latestEvaluation.per_criterion_results && (
+                  {activeEvaluation.per_criterion_results && (
                     <div className="space-y-2">
                       <span className="text-xs font-semibold uppercase tracking-wider text-content-secondary block">
                         Per-Criterion Performance Breakdown
                       </span>
-                      {latestEvaluation.per_criterion_results.map((cr, idx) => (
+                      {activeEvaluation.per_criterion_results.map((cr, idx) => (
                         <CriterionCard
                           key={idx}
                           id={cr.id || String(idx)}
@@ -497,10 +633,10 @@ export default function FreelancerContractWorkPage() {
                   )}
 
                   {/* Collapsible Sandbox Terminal Output */}
-                  {latestEvaluation.sandbox_evidence?.stdout && (
+                  {activeEvaluation.sandbox_evidence?.stdout && (
                     <CodeBlock
                       title="Automated Sandbox Test Execution Log"
-                      code={latestEvaluation.sandbox_evidence.stdout}
+                      code={activeEvaluation.sandbox_evidence.stdout}
                     />
                   )}
 
@@ -514,13 +650,17 @@ export default function FreelancerContractWorkPage() {
                       Dispute this Verdict
                     </button>
 
-                    {latestEvaluation.verdict !== "pass" && (
+                    {activeEvaluation.verdict !== "pass" && (
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => {
-                          window.scrollTo({ top: 300, behavior: "smooth" });
-                        }}
+                        icon={<RotateCcw className="w-3.5 h-3.5" />}
+                        onClick={() =>
+                          handleFixAndResubmit(
+                            activeSubmission?.content_text,
+                            activeSubmission?.submission_type
+                          )
+                        }
                       >
                         Fix & Resubmit
                       </Button>

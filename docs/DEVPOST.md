@@ -32,7 +32,7 @@ TrustPay is an autonomous escrow and milestone verification platform built on Pa
 - **Backend**: FastAPI (Python 3.11+), SQLAlchemy async session, SQLite (Postgres-ready via `DATABASE_URL`).
 - **Payments**: PayPal Orders v2 REST API (`intent: AUTHORIZE`, partial captures, voids, refunds, reauthorization checks, webhook signature verification). All PayPal calls are strictly encapsulated in `backend/services/paypal_service.py`.
 - **AI Intelligence**: Groq API (`openai/gpt-oss-120b` & `qwen/qwen3.8-27b`) for sub-second agent negotiations and Anthropic Claude fallback (`backend/services/llm_service.py`), utilizing structured Pydantic JSON schemas, low temperature (`0.2`), automatic retry loops, and adversarial prompt-injection guardrails.
-- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide icons, responsive dark/light mode, and seamless Client/Freelancer role switching.
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide icons, editorial fintech design system (Fraunces serif + Inter sans on a warm cream canvas #F6F0E4), and dual dedicated portals: Client Portal (`/client`) for project creation and PayPal escrow funding, Freelancer Portal (`/freelancer`) for deliverables and payouts, plus an evaluator Demo Hub (`/demo`).
 - **Sandbox**: Dual-mode runner supporting Docker containers (`--network none`) and local isolated process execution with memory and execution timeouts.
 - **Deployment**: Render-ready with `render.yaml` and production `Dockerfile`.
 

@@ -1,6 +1,7 @@
 # TrustPay — Autonomous Escrow & Milestone Verification for AI-Negotiated Deals
 
 [![PayPal AI Hackathon](https://img.shields.io/badge/PayPal%20AI%20Hackathon-Devpost-0070BA?style=for-the-badge&logo=paypal)](https://devpost.com)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-TrustPay-24493D?style=for-the-badge&logo=github)](https://github.com/venmugilrajan/TrustPay)
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
@@ -19,13 +20,25 @@ Freelancers and students often don't get paid after completing work. Clients fea
 
 ---
 
+## 🎨 Design & Experience
+TrustPay features a calm, trustworthy fintech editorial aesthetic inspired by Stripe Climate, Wise, and Notion:
+- **Palette**: Warm cream canvas (`#F6F0E4`), crisp paper-white cards (`#FFFDF8`), and deep woodland green primary actions (`#24493D`).
+- **Typography**: Editorial serif (**Fraunces**) for titles and milestone amounts, clean sans-serif (**Inter**) for UI controls, and strict monospace (**JetBrains Mono**) strictly isolated to PayPal IDs and test runners.
+- **Dual Dedicated Portals**:
+  - **Client Portal (`/client/...`)**: Post a Job 3-step wizard, contract roadmap, PayPal escrow authorization, payment activity ledger, and dispute arbitration.
+  - **Freelancer Portal (`/freelancer/...`)**: Available opportunities, actionable *"Next action needed"* banner, acceptance criteria checklist, drag-and-drop file uploader, AI Judge score ring, and earnings ledger.
+  - **Role Selection Gateway (`/`)**: 3-step explanation with clean entry cards for clients and freelancers.
+  - **Demo Hub (`/demo`)**: Standalone evaluator sandbox with 1-click seeding, reset controls, and live state metrics.
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Users ["Demo Roles"]
-        ClientUser["Client (Buyer)"]
-        FreelancerUser["Freelancer (Worker)"]
+    subgraph Users ["Dual Independent Portals"]
+        ClientUser["Client Portal (/client)"]
+        FreelancerUser["Freelancer Portal (/freelancer)"]
     end
 
     subgraph Agents ["Four Specialized AI Agents (Groq & Claude APIs)"]
@@ -54,7 +67,7 @@ flowchart TD
         PPRefund["POST /v2/payments/captures/{id}/refund"]
     end
 
-    ClientUser -->|1. Post Job| JobRouter
+    ClientUser -->|1. Post Job Wizard| JobRouter
     JobRouter <-->|2. Alternating Turns| CA
     JobRouter <-->|2. Alternating Turns| FA
     CA <-->|Agree on Milestones| FA
@@ -73,27 +86,22 @@ flowchart TD
     JobRouter -->|Partial 0.50-0.84: Partial Capture| PayPalService
     PayPalService -->|9. Milestone Payout| PPCapture
 
-    ClientUser -.->|Optional Dispute| Dispute
+    ClientUser & FreelancerUser -.->|Optional Dispute| Dispute
     Dispute -->|Binding Ruling| PayPalService
     PayPalService -->|Refund/Split| PPRefund
 ```
 
 ---
 
-## ✨ Features
-- **Deterministic Contract Invariants**: Milestone amounts must sum strictly to `total_amount` (validated with Pydantic in code).
-- **Prompt-Injection Defense**: User deliverable payloads are treated strictly as passive data inside `<deliverable_data>`. Malicious instructions seeking score overrides are detected, flagged, and disqualified.
+## ✨ Core Technical Highlights
+- **Deterministic Contract Invariants**: Milestone amounts must sum strictly to `total_amount` (validated in Pydantic and database constraints).
+- **Prompt-Injection Defense**: User deliverables are strictly isolated as passive data inside `<deliverable_data>`. Adversarial attempts to hijack the AI Judge are detected, flagged, and disqualified.
 - **PayPal Orders v2 with Intent AUTHORIZE**:
-  - `create_order_authorize`: Sets up authorization hold for agreed amount.
+  - `create_order_authorize`: Sets up authorization hold for agreed contract amount.
   - `authorize_order`: Captures PayPal authorization ID; funds held in escrow.
-  - `capture_authorization`: Supports multiple partial captures and sets `final_capture: true` on completion.
+  - `capture_authorization`: Supports multiple partial captures and sets `final_capture: true` on final milestone.
   - `void_authorization`: Automatically voids holds if deadlines pass without delivery.
   - `refund_capture`: Returns disputed funds back to client.
-- **Fintech UI with Role Switcher**:
-  - Live agent dialogue transcript and interactive contract draft preview.
-  - Milestone cards with per-criterion test evidence.
-  - One-click role toggle between **Client** and **Freelancer** views.
-  - **"Seed Demo Job" button**: Preloads 3 verified real-world scenarios (Pass, Partial, Fail/Dispute) with zero setup.
 
 ---
 
@@ -106,15 +114,15 @@ flowchart TD
 
 ### 1. Clone & Configure Environment
 ```bash
-git clone https://github.com/your-username/trustpay.git
-cd trustpay
+git clone https://github.com/venmugilrajan/TrustPay.git
+cd TrustPay
 cp .env.example .env
 ```
 Edit `.env` (TrustPay includes simulated sandbox fallbacks if keys are not yet configured):
 ```env
 # AI Provider (Groq high-speed inference or Claude)
 GROQ_API_KEY=your_groq_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+GROQ_MODEL=openai/gpt-oss-20b
 
 # PayPal Developer Sandbox Credentials
 PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
@@ -122,21 +130,22 @@ PAYPAL_CLIENT_SECRET=your_paypal_sandbox_client_secret
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
 ```
 
-### 2. Start Backend (Terminal 1)
+### 2. Start Backend
 ```bash
 # Install dependencies
 python -m pip install -r backend/requirements.txt
 
 # Run FastAPI server
-uvicorn backend.main:app --reload --port 8000
+uvicorn backend.main:app --port 8000
 ```
 Backend API will be live at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
 
-### 3. Start Frontend (Terminal 2)
+### 3. Start Frontend
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run build
+npm start
 ```
 Frontend will be live at `http://localhost:3000`.
 
@@ -144,34 +153,29 @@ Frontend will be live at `http://localhost:3000`.
 
 ## 💳 How Judges Can Test with PayPal Sandbox Accounts
 
-1. **Dashboard & Demo Seeding**:
-   - Open `http://localhost:3000/dashboard`.
-   - Click **"Seed 3 Scenarios"** (or **"Seed Demo Job"** in the top navigation).
-   - This immediately preloads:
-     - **Scenario 1 (Pass)**: Zero-Knowledge Identity Module ($1,300.00). Score 0.96. Milestone 1 ($600.00) captured via PayPal.
-     - **Scenario 2 (Partial)**: L2 Orderbook Matching Engine ($1,500.00). Score 0.72. Partial capture of $576.00 released with resubmission allowed.
-     - **Scenario 3 (Fail & Dispute)**: Mempool Scanner ($1,800.00). Prompt injection detected, 0 payout, arbitrated by Dispute Agent ($360 capture / $540 refund).
+1. **Role Selection & Demo Seeding**:
+   - Open `http://localhost:3000`.
+   - Choose **"I'm hiring (Client)"** or **"I'm a freelancer"**.
+   - Or click **Demo Hub** in the header/footer to seed a pre-negotiated demo contract with 1 click.
 
 2. **Live PayPal Sandbox Testing**:
-   - In `.env`, provide your PayPal Sandbox App credentials from [developer.paypal.com](https://developer.paypal.com).
-   - Click **"Post Job"**, fill in the title, and click **"Start AI Negotiation"**.
-   - Click **"Auto-Run Deal"** to watch the Client Agent and Freelancer Agent negotiate terms.
-   - Click **"Approve as Client"** and **"Approve as Freelancer"**.
-   - Click **"Authorize with PayPal Sandbox"** — log in with your PayPal Sandbox Personal (Buyer) account.
-   - Submit code in the Milestone view. The AI Judge tests the code in the sandbox and triggers the capture against your Sandbox Business (Seller) account.
+   - Click **"Post a Job"**, fill in requirements, set budget, and launch negotiation.
+   - Watch the Client Agent and Freelancer Agent agree on milestones.
+   - Click **"Approve Contract"** as Client, and confirm as Freelancer.
+   - Click **"Fund Escrow with PayPal"** — approve via the official PayPal JS SDK popup or click **Quick Sandbox Authorize**.
+   - As the Freelancer, submit code/files in **My Work**. The AI Judge runs tests in the sandbox and releases payment via PayPal capture.
 
 3. **Verify via PayPal Smoke Test Script**:
    ```bash
-   # Runs Authorize -> Partial Capture ($40) -> Void ($60)
+   # Runs Authorize -> Partial Capture ($40) -> Void ($60) against PayPal Sandbox
    python scripts/paypal_smoke_test.py
    ```
 
 ---
 
 ## 🧪 Testing Suite
-TrustPay includes comprehensive automated tests for contract invariants, PayPal operations, and agent security:
+TrustPay includes 22 automated tests covering contract invariants, PayPal operations, and agent prompt injection guardrails:
 ```bash
-# Run full pytest suite
 python -m pytest backend/tests/ -v
 ```
 

@@ -14,6 +14,8 @@ import {
   CreditCard,
   FileText,
   DollarSign,
+  History,
+  FileCode,
 } from "lucide-react";
 import {
   PageHeader,
@@ -40,6 +42,7 @@ export default function ClientContractDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null);
 
   // Approval state
   const [approving, setApproving] = useState(false);
@@ -131,15 +134,23 @@ export default function ClientContractDetailPage() {
   const activeMilestone =
     milestones.find((m) => m.id === selectedMilestoneId) || milestones[0];
 
-  const latestSubmission =
-    activeMilestone?.submissions && activeMilestone.submissions.length > 0
-      ? activeMilestone.submissions[activeMilestone.submissions.length - 1]
-      : null;
+  // Sort submissions descending by version
+  const sortedSubmissions = activeMilestone?.submissions
+    ? [...activeMilestone.submissions].sort((a, b) => (b.version || 0) - (a.version || 0))
+    : [];
 
-  const latestEvaluation =
-    latestSubmission?.evaluations && latestSubmission.evaluations.length > 0
-      ? latestSubmission.evaluations[latestSubmission.evaluations.length - 1]
-      : null;
+  const activeSubmission =
+    (selectedSubmissionId && sortedSubmissions.find((s) => s.id === selectedSubmissionId)) ||
+    sortedSubmissions[0] ||
+    null;
+
+  const sortedEvaluations = activeSubmission?.evaluations
+    ? [...activeSubmission.evaluations].sort(
+        (a, b) => new Date(b.evaluated_at || 0).getTime() - new Date(a.evaluated_at || 0).getTime()
+      )
+    : [];
+
+  const latestEvaluation = sortedEvaluations[0] || null;
 
   const nextStepExplanation = () => {
     switch (job.status) {
@@ -366,12 +377,92 @@ export default function ClientContractDetailPage() {
                 {/* AI Judge Evaluation Result (if submitted) */}
                 {latestEvaluation ? (
                   <div className="space-y-4 pt-4 border-t border-border-subtle">
+                    {/* Revision Switcher when multiple submissions exist */}
+                    {sortedSubmissions.length > 1 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-btn bg-surface-subtle border border-border-subtle">
+                        <div className="flex items-center gap-2">
+                          <History className="w-3.5 h-3.5 text-content-secondary" />
+                          <span className="text-xs font-semibold text-content-primary">
+                            Submission History:
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {sortedSubmissions.map((s) => {
+                              const isLatest = s.version === sortedSubmissions[0].version;
+                              const isSelected = activeSubmission?.id === s.id;
+                              const evalStatus = s.evaluations?.[0]?.verdict;
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => setSelectedSubmissionId(s.id)}
+                                  className={`px-2.5 py-1 rounded text-xs font-mono transition-colors flex items-center gap-1.5 ${
+                                    isSelected
+                                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                                      : "bg-surface text-content-secondary hover:text-content-primary border border-border-subtle"
+                                  }`}
+                                >
+                                  <span>v{s.version}</span>
+                                  {isLatest && <span className="text-[10px] font-sans uppercase font-bold">(Latest)</span>}
+                                  {evalStatus && (
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full ${
+                                        evalStatus === "pass"
+                                          ? "bg-success"
+                                          : evalStatus === "partial"
+                                          ? "bg-warning"
+                                          : "bg-danger"
+                                      }`}
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <span className="text-[11px] text-content-muted">
+                          Viewing Revision #{activeSubmission?.version || 1}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-content-secondary">
-                        AI Judge Verdict & Evidence
-                      </h4>
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-content-secondary">
+                          AI Judge Verdict & Evidence
+                        </h4>
+                        {activeSubmission && (
+                          <p className="text-xs text-content-muted">
+                            Evaluation for Revision #{activeSubmission.version}
+                          </p>
+                        )}
+                      </div>
                       <StatusChip status={latestEvaluation.verdict} />
                     </div>
+
+                    {/* Submitted Content Preview */}
+                    {activeSubmission && (
+                      <div className="p-3.5 rounded-card bg-cream-100 border border-border space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-content-primary flex items-center gap-1.5">
+                            <FileCode className="w-3.5 h-3.5 text-primary" />
+                            Deliverable Evaluated (Revision #{activeSubmission.version} - {activeSubmission.submission_type}):
+                          </span>
+                          <span className="text-[11px] text-content-muted">
+                            {new Date(activeSubmission.submitted_at).toLocaleString()}
+                          </span>
+                        </div>
+                        {activeSubmission.file_path && (
+                          <p className="text-xs font-mono text-content-secondary">
+                            File: {activeSubmission.file_path.split(/[\\/]/).pop()}
+                          </p>
+                        )}
+                        {activeSubmission.content_text && (
+                          <pre className="p-2.5 rounded bg-surface border border-border-subtle text-xs font-mono text-content-primary whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {activeSubmission.content_text}
+                          </pre>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-6 p-4 rounded-card bg-surface-subtle border border-border-subtle">
                       <ScoreRing score={latestEvaluation.overall_score} size={84} />

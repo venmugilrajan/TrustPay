@@ -6,7 +6,7 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   error?: string;
 }
 
-export default function Textarea({
+export default React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({
   label,
   helperText,
   error,
@@ -14,7 +14,7 @@ export default function Textarea({
   id,
   rows = 4,
   ...props
-}: TextareaProps) {
+}, ref) {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
   return (
@@ -25,6 +25,7 @@ export default function Textarea({
         </label>
       )}
       <textarea
+        ref={ref}
         id={inputId}
         rows={rows}
         className={`w-full bg-surface text-content-primary placeholder:text-content-muted text-sm rounded-btn border ${
@@ -39,5 +40,5 @@ export default function Textarea({
       ) : null}
     </div>
   );
-}
+});
 
