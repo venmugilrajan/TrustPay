@@ -147,25 +147,71 @@ TrustPay provides an interactive **Demo Hub (`/demo`)** allowing judges to explo
 
 ### Step-by-Step Live Workflow
 
+```mermaid
+flowchart TD
+    S1["1. Post Project Brief<br/>Client publishes brief with private $1,200 USD budget cap"]
+    S2["2. Freelancer Application<br/>Freelancer sets private floor ($750) and target anchor ($950)"]
+    S3["3. Autonomous Negotiation Rounds<br/>Client and Freelancer Agents formulate terms across alternating turns"]
+    S4["4. Mutual Consensus Reached<br/>Agreed Total: $850.00 USD (M1: $400.00 + M2: $450.00)"]
+    S5["5. PayPal Escrow Authorization<br/>Client approves $850.00 safe-hold via PayPal Orders v2 SDK"]
+    S6["6. Milestone #1 Submission<br/>Freelancer submits backend code; Container sandbox runs test suite"]
+    S7["7. AI Judge Verification & Partial Capture<br/>Judge grades 95% pass rate; PayPal captures $400.00 to Freelancer"]
+    S8["8. Milestone #2 Submission<br/>Freelancer submits integration deliverables; 100% tests pass"]
+    S9["9. Final PayPal Capture & Completion<br/>PayPal captures remaining $450.00 (final_capture: true); Hold closed"]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
 ```
-[1. Post Project]      Client posts project brief with private $1,200 budget cap.
-         │
-[2. Apply]             Freelancers apply with private floor ($750) and target price ($950).
-         │
-[3. Autonomous Turns]  Client Agent & Freelancer Agent exchange proposals in alternating rounds.
-         │             Consensus reached at $850.00 USD across 2 milestones.
-         │
-[4. Mutual Approval]   Both parties review the agreed contract terms and confirm.
-         │
-[5. PayPal Escrow]     Client authorizes $850.00 USD hold via PayPal Orders v2 SDK.
-         │             Status transitions to: Money Held Safely (Escrow Active).
-         │
-[6. Work & Submit]     Freelancer submits verified code for Milestone #1 ($400.00).
-         │
-[7. Sandbox & Judge]   Code executes in container sandbox. AI Judge grades 95% pass rate.
-         │
-[8. PayPal Capture]    $400.00 USD captured automatically and credited to Freelancer.
-```
+
+| Step | Participant / Engine | Action & Protocol Transition | Financial State | PayPal / Sandbox Primitive |
+| :--- | :--- | :--- | :--- | :--- |
+| **01** | Client | Posts project brief with public scope and private `$1,200.00` ceiling | `$0.00` committed | `POST /api/jobs` |
+| **02** | Freelancer | Applies with private floor (`$750.00`) and target quote (`$950.00`) | `$0.00` committed | `POST /api/applications` |
+| **03** | AI Agents | Client & Freelancer Agents exchange structured bids across rounds | Negotiating bracket | LLM Service (Groq Llama 3.3 / Claude 3.5) |
+| **04** | Both Parties | Both human parties review and accept agreed terms at `$850.00` | Contract accepted | `POST /api/applications/{id}/accept-contract` |
+| **05** | Client & PayPal | Client authorizes full `$850.00` contract hold via PayPal Smart Buttons | `$850.00` held in safe escrow | `POST /v2/checkout/orders` (`intent: AUTHORIZE`) |
+| **06** | Freelancer | Submits code deliverable for Milestone #1 (`$400.00`) | `$850.00` held | Isolated Docker Sandbox (`--network none`) |
+| **07** | AI Judge & PayPal | Judge grades 95% test score; PayPal captures Milestone #1 payout | `$400.00` released, `$450.00` held | `POST /v2/payments/authorizations/{id}/capture` |
+| **08** | Freelancer | Submits completed integration for Milestone #2 (`$450.00`) | `$450.00` held | Sandbox Execution Engine |
+| **09** | AI Judge & PayPal | Judge grades 100% test score; PayPal captures Milestone #2 payout | `$850.00` fully settled | `capture_authorization` (`final_capture: true`) |
+
+---
+
+## Product Tour & Visual Interface
+
+### 1. Editorial Landing Page & Protocol Architecture
+A responsive fintech landing page highlighting the dual-sided autonomous workflow, PayPal Orders v2 safe-hold mechanics, and sandbox verification guarantees.
+
+![TrustPay Editorial Landing Page](screenshots/01_landing_page_desktop.png)
+
+### 2. Autonomous Multi-Agent Negotiation & Consensus Formation
+Real-time dialogue between the Client Agent (representing the buyer) and Freelancer Agent (representing the candidate). Each round presents formal structured concessions, timeline updates, and milestone breakdowns until mutual consensus is achieved.
+
+![Autonomous Negotiation Thread](screenshots/06_client_negotiation_thread_1440px.png)
+
+### 3. PayPal Orders v2 Escrow Authorization Safe-Hold
+Upon mutual contract acceptance, funds are locked using PayPal Orders v2 with `intent: AUTHORIZE`. The client's funds remain safely committed in escrow without premature capture or platform custody.
+
+![PayPal Escrow Authorization Hold](screenshots/07_client_fund_escrow_page_1440px.png)
+
+### 4. AI Judge Sandbox Verification & Milestone Inspection
+When deliverables are submitted, the automated test runner executes the test suite in an isolated container. The AI Judge parses test outcomes, evaluates acceptance criteria, and triggers automated PayPal captures.
+
+![AI Judge Verdict and Milestone Inspection](screenshots/05_client_contract_milestones_verdict_1440px.png)
+
+### 5. Freelancer Deliverable & Code Submission Workspace
+Freelancers track active contracts, view precise acceptance criteria, upload deliverables or test scripts, and observe real-time sandbox execution feedback.
+
+![Freelancer Deliverable Workspace](screenshots/13_freelancer_contract_workspace_1440px.png)
+
+### 6. Client Project Governance & Multi-Candidate Isolation
+Clients can view active projects, inspect multiple independent freelancer proposals via candidate selector pills without data cross-contamination, and authorize funding in one click.
+
+![Client Project Management Dashboard](screenshots/02_client_dashboard.png)
+
+### 7. Interactive Evaluator Demo Hub (`/demo`)
+Judges can explore pre-seeded end-to-end scenarios (full payouts, partial milestones, and binding dispute arbitration) in under 60 seconds without manual setup.
+
+![Interactive Demo Hub](screenshots/02_demo_hub_1440px.png)
 
 ---
 
