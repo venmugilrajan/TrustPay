@@ -199,8 +199,14 @@ def _generate_mock_client_output(
         )
 
     else:
-        candidate_price = freelancer_proposal.get("proposed_price") if freelancer_proposal else round(max_budget * 0.88, 2)
-        final_price = min(candidate_price, max_budget)
+        candidate_price = None
+        if freelancer_proposal:
+            candidate_price = freelancer_proposal.get("proposed_price")
+            if candidate_price is None and freelancer_proposal.get("contract_draft"):
+                candidate_price = freelancer_proposal["contract_draft"].get("total_amount")
+        if candidate_price is None:
+            candidate_price = round(max_budget * 0.88, 2)
+        final_price = min(float(candidate_price), float(max_budget))
         m1 = round(final_price * 0.45, 2)
         m2 = round(final_price - m1, 2)
         return ClientNegotiationOutput(

@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
 export interface CopyableIdProps {
-  idText: string;
+  idText?: string;
+  id?: string;
   label?: string;
   truncate?: boolean;
   className?: string;
@@ -10,22 +11,25 @@ export interface CopyableIdProps {
 
 export default function CopyableId({
   idText,
+  id,
   label,
   truncate = true,
   className = "",
 }: CopyableIdProps) {
   const [copied, setCopied] = useState(false);
+  const actualText = idText || id || "";
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(idText);
+    navigator.clipboard.writeText(actualText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const displayText = truncate && idText.length > 20
-    ? `${idText.slice(0, 10)}...${idText.slice(-6)}`
-    : idText;
+  const displayText =
+    truncate && actualText.length > 20
+      ? `${actualText.slice(0, 10)}...${actualText.slice(-6)}`
+      : actualText;
 
   return (
     <div
@@ -41,4 +45,3 @@ export default function CopyableId({
     </div>
   );
 }
-

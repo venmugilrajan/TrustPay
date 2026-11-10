@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Sparkles, CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowRight, RotateCcw, XCircle, AlertCircle } from "lucide-react";
 import {
   PageHeader,
   Card,
@@ -13,7 +13,14 @@ import {
   Skeleton,
   NextStepCard,
 } from "@/components/ui";
-import { getJob, stepNegotiation, approveContract, Job } from "@/lib/api";
+import {
+  getJob,
+  stepNegotiation,
+  approveContract,
+  getStoredUser,
+  ensureDemoUser,
+  Job,
+} from "@/lib/api";
 
 export default function FreelancerNegotiatePage() {
   const params = useParams();
@@ -27,6 +34,10 @@ export default function FreelancerNegotiatePage() {
 
   const loadJobData = async () => {
     try {
+      const stored = getStoredUser("freelancer");
+      const userId = stored?.id || "freelancer_arjun";
+      await ensureDemoUser(userId, "freelancer").catch(() => {});
+
       const data = await getJob(jobId);
       setJob(data);
     } catch (err) {
@@ -76,8 +87,63 @@ export default function FreelancerNegotiatePage() {
 
   if (!job) return null;
 
-  const turns = job.negotiation_turns || [];
-  const contract = job.contract;
+  const stored = getStoredUser("freelancer");
+  const currentUserId = stored?.id || "freelancer_arjun";
+
+  // STRICT APPLICATION RESOLUTION: Match THIS signed-in freelancer's application only
+  const myApp =
+    (job as any).my_application ||
+    (job.applications || []).find((a: any) => a.freelancer_id === currentUserId) ||
+    null;
+
+  const freelancerName = myApp?.freelancer_name || stored?.name || "Freelancer";
+
+  // Use this application's specific turns if present, otherwise job's turns
+  const turns =
+    (myApp && (myApp as any).negotiation_turns && (myApp as any).negotiation_turns.length > 0)
+      ? (myApp as any).negotiation_turns
+      : (job.negotiation_turns || []);
+
+  // ONLY consider contract valid for THIS freelancer if the contract's application_id matches myApp.id
+  const contract =
+    myApp?.contract ||
+    (job.contract && myApp && job.contract.application_id === myApp.id
+      ? job.contract
+      : null);
+
+  const isNoDeal =
+    myApp?.status === "no_deal" ||
+    turns.some(
+      (t) =>
+        t.proposal_summary?.toLowerCase().includes("no deal") ||
+        t.message?.toLowerCase().includes("without a deal") ||
+        t.message?.toLowerCase().includes("without agreement")
+    );
+
+  const isAgreed =
+    !isNoDeal &&
+    Boolean(
+      contract ||
+        (turns.length > 0 && turns.some((t) => t.agreed)) ||
+        myApp?.status === "agreement_reached" ||
+        myApp?.status === "approved" ||
+        myApp?.status === "funded"
+    );
+
+  const isNegotiating =
+    !isNoDeal &&
+    !isAgreed &&
+    (turns.length > 0 || job.status === "negotiating" || myApp?.status === "negotiating");
+
+  const effectiveStatus = isNoDeal
+    ? "no_deal"
+    : isAgreed
+    ? contract
+      ? "negotiated"
+      : "agreement_reached"
+    : isNegotiating
+    ? "negotiating"
+    : (myApp?.status || job.status);
 
   return (
     <div className="space-y-8">
@@ -86,9 +152,9 @@ export default function FreelancerNegotiatePage() {
         description="Your Freelancer Agent advocates for fair pricing and realistic timelines against the buyer agent."
         backHref={`/freelancer/work/${job.id}`}
         backLabel="Back to Work Overview"
-        badge={<StatusChip status={job.status} />}
+        badge={<StatusChip status={effectiveStatus} role="freelancer" />}
         action={
-          job.status === "negotiating" ? (
+          isNegotiating ? (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -113,9 +179,13 @@ export default function FreelancerNegotiatePage() {
 
       <NextStepCard
         stepText={
-          job.status === "negotiating"
-            ? "Your agent is actively negotiating terms. Minimum 3 rounds of proposals before final contract consensus."
-            : "Both agents reached agreement! Review terms on the right and confirm as Freelancer."
+          isNoDeal
+            ? "Proposal Ended: Budget Constraints Did Not Overlap. The client's budget was below your minimum acceptable price. The client's project remains open for other proposals, and you can explore other opportunities."
+            : isAgreed
+            ? "Both agents reached agreement! Review terms on the right and confirm as Freelancer."
+            : turns.length === 0
+            ? "Click below to begin autonomous multi-round negotiation between your Freelancer Agent and the Client Agent."
+            : "Your agent is actively negotiating terms. Minimum 3 rounds of proposals before final contract consensus."
         }
       />
 
@@ -127,7 +197,7 @@ export default function FreelancerNegotiatePage() {
               Proposal Exchange ({turns.length} turns)
             </span>
             <span className="text-xs text-content-muted">
-              Consensus requires min. 3 rounds
+              {isNoDeal ? "Closed: No Deal" : "Consensus requires min. 3 rounds"}
             </span>
           </div>
 
@@ -156,7 +226,9 @@ export default function FreelancerNegotiatePage() {
                   key={turn.id}
                   sender={turn.agent_role}
                   agentName={
-                    turn.agent_role === "freelancer" ? "Your Agent (Worker)" : "Client's Agent (Buyer)"
+                    turn.agent_role === "freelancer"
+                      ? `Freelancer Agent (${freelancerName})`
+                      : "Client Agent (Maya Patel)"
                   }
                   roundNumber={turn.round_number}
                   message={turn.message}
@@ -176,7 +248,7 @@ export default function FreelancerNegotiatePage() {
               <h3 className="font-serif font-bold text-base text-content-primary">
                 Agreed Contract Terms
               </h3>
-              {contract && <StatusChip status="negotiated" />}
+              {contract && <StatusChip status="negotiated" role="freelancer" />}
             </div>
 
             {contract ? (
@@ -186,7 +258,7 @@ export default function FreelancerNegotiatePage() {
                     Agreed Escrow Value
                   </span>
                   <div className="text-2xl font-serif font-bold text-primary mt-0.5">
-                    ${contract.total_amount.toFixed(2)} {contract.currency}
+                    ${Number(contract?.total_amount || 0).toFixed(2)} {contract.currency}
                   </div>
                   <span className="text-content-muted text-[11px] font-mono mt-1 block">
                     Final Deadline: {contract.deadline}
@@ -207,7 +279,7 @@ export default function FreelancerNegotiatePage() {
                           #{idx + 1} {m.title}
                         </span>
                         <span className="font-serif font-bold text-content-primary">
-                          ${m.amount.toFixed(2)}
+                          ${Number(m.amount || 0).toFixed(2)}
                         </span>
                       </div>
                       <p className="text-[11px] text-content-secondary line-clamp-2">
@@ -232,7 +304,7 @@ export default function FreelancerNegotiatePage() {
                     Accept Contract as Freelancer
                   </Button>
 
-                  {job.status === "negotiating" && (
+                  {isNegotiating && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -244,6 +316,25 @@ export default function FreelancerNegotiatePage() {
                       Counter-Offer Next Round
                     </Button>
                   )}
+                </div>
+              </div>
+            ) : isNoDeal ? (
+              <div className="text-center py-8 space-y-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-600">
+                  <XCircle className="w-5 h-5 text-amber-500" />
+                </div>
+                <h4 className="font-serif font-bold text-sm text-content-primary">
+                  No Contract Formed
+                </h4>
+                <p className="text-xs text-content-secondary max-w-xs mx-auto leading-relaxed">
+                  Because the negotiation ended without consensus, no contract draft was created.
+                </p>
+                <div className="pt-2">
+                  <Link href="/freelancer/opportunities">
+                    <Button size="sm" variant="outline" className="w-full">
+                      Explore Other Opportunities
+                    </Button>
+                  </Link>
                 </div>
               </div>
             ) : (

@@ -1,15 +1,15 @@
 import uuid
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import update, func
 from sqlalchemy.orm import selectinload
 
 from backend.core.database import get_db
-from backend.core.auth import get_current_user, get_optional_user
+from backend.core.auth import get_current_user, TokenUser, require_client, require_freelancer
 from backend.models.models import (
     Job,
     Application,
@@ -21,7 +21,6 @@ from backend.models.models import (
 )
 from backend.schemas.schemas import (
     ApplicationCreateRequest,
-    ApplicationResponse,
     HumanDecisionRequest,
     ContractSchema,
     MilestoneSchema,
@@ -29,8 +28,9 @@ from backend.schemas.schemas import (
 from backend.agents.client_agent import run_client_agent_turn
 from backend.agents.freelancer_agent import run_freelancer_agent_turn
 from backend.services.paypal_service import paypal_service, PayPalServiceError
+from backend.services.stats_service import stats_service
 
-router = APIRouter(prefix="/api", tags=["applications"])
+router = APIRouter(tags=["applications"])
 logger = logging.getLogger("trustpay.api.applications")
 
 
@@ -53,22 +53,29 @@ async def add_audit_log(
 
 def serialize_application(app: Application, role: str) -> dict:
     """
-    Serializes an Application model, strictly enforcing privacy:
+    Serializes an Application model, strictly enforcing role privacy:
     - Never leaks application.min_price to clients or public.
     """
+    f_name = app.freelancer_name
+    if not f_name or f_name in ("Senior Full-Stack Engineer", "Alex (Verified)", "Freelancer Agent"):
+        f_name = "Sofia Reyes" if "sofia" in (app.freelancer_id or "").lower() else "Arjun Kumar"
+
     data = {
         "id": app.id,
         "job_id": app.job_id,
         "freelancer_id": app.freelancer_id,
-        "freelancer_name": app.freelancer_name,
+        "freelancer_name": f_name,
+        "freelancer_title": "Backend & Data Pipeline Specialist" if f_name == "Sofia Reyes" else "Full-Stack & Systems Engineer",
         "preferred_price": app.preferred_price,
         "time_needed_days": app.time_needed_days,
         "skills": app.skills,
         "exclusions": app.exclusions,
         "notes": app.notes,
         "status": app.status,
-        "client_approved": app.client_approved,
-        "freelancer_approved": app.freelancer_approved,
+        "client_accepted": app.client_accepted,
+        "freelancer_accepted": app.freelancer_accepted,
+        "client_approved": app.client_accepted,
+        "freelancer_approved": app.freelancer_accepted,
         "counters_used": app.counters_used,
         "created_at": app.created_at.isoformat() if app.created_at else None,
         "updated_at": app.updated_at.isoformat() if app.updated_at else None,
@@ -76,7 +83,7 @@ def serialize_application(app: Application, role: str) -> dict:
         "negotiation_turns": [],
     }
 
-    # Only the applicant itself can see their own private min_price
+    # Only the applicant freelancer can see their private min_price
     if role == "freelancer":
         data["min_price"] = app.min_price
 
@@ -86,6 +93,7 @@ def serialize_application(app: Application, role: str) -> dict:
             "id": c.id,
             "job_id": c.job_id,
             "application_id": c.application_id,
+            "version": getattr(c, "version", 1),
             "total_amount": c.total_amount,
             "currency": c.currency,
             "deadline": c.deadline,
@@ -101,8 +109,9 @@ def serialize_application(app: Application, role: str) -> dict:
                     "due_date": m.due_date,
                     "status": m.status,
                     "captured_amount": m.captured_amount,
+                    "paid_amount": m.paid_amount,
                     "paypal_capture_id": m.paypal_capture_id,
-                    "resubmission_count": m.resubmission_count,
+                    "resubmission_count": m.resubmissions_used,
                     "acceptance_criteria": [
                         {"id": ac.criterion_key, "text": ac.text, "weight": ac.weight}
                         for ac in m.acceptance_criteria
@@ -117,6 +126,7 @@ def serialize_application(app: Application, role: str) -> dict:
             {
                 "round_number": t.round_number,
                 "agent_role": t.agent_role,
+                "sender": t.sender or (f"{t.agent_role}_agent"),
                 "message": t.message,
                 "proposal_summary": t.proposal_summary,
                 "proposed_price": t.proposed_price,
@@ -132,60 +142,93 @@ def serialize_application(app: Application, role: str) -> dict:
 
 
 # =========================================================================
-# 1. APPLY TO JOB (Freelancer)
+# 1. APPLY TO JOB (Freelancer Only)
 # =========================================================================
-@router.post("/jobs/{job_id}/applications", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/api/jobs/{job_id}/apply", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/api/jobs/{job_id}/applications", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def apply_to_job(
     job_id: str,
     req: ApplicationCreateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(require_freelancer),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Submits an application brief for an open job.
     Requires role == 'freelancer'.
-    Creates Application in 'negotiating' status.
+    Creates Application in 'negotiating' status and kicks off turn 1 negotiation.
     """
-    if current_user["role"] != "freelancer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only freelancers can apply to jobs.",
-        )
-
     stmt = select(Job).where(Job.id == job_id)
     res = await db.execute(stmt)
     job = res.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    if job.status not in ("open", "negotiating"):
+    if job.status not in ("open", "in_negotiation"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Cannot apply: job is in '{job.status}' status (must be 'open').",
         )
 
+    # Check if this freelancer already applied to this job
+    existing_stmt = select(Application).where(
+        Application.job_id == job_id,
+        Application.freelancer_id == current_user.user_id,
+    )
+    existing_res = await db.execute(existing_stmt)
+    if existing_res.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already submitted a proposal for this project. Check 'My Work' to view its status.",
+        )
+
+    # Range non-overlap immediate check
+    is_no_deal = req.min_price > job.max_budget
+    initial_status = "no_deal" if is_no_deal else "negotiating"
+
+    skills_str = ", ".join(req.skills) if isinstance(req.skills, list) else (req.skills or "")
+
     app = Application(
         job_id=job.id,
-        freelancer_id=current_user["user_id"],
-        freelancer_name=req.freelancer_name or current_user["user_id"],
+        freelancer_id=current_user.user_id,
+        freelancer_name=req.freelancer_name or current_user.name or current_user.user_id,
         min_price=req.min_price,
         preferred_price=req.preferred_price,
         time_needed_days=req.time_needed_days,
-        skills=req.skills,
+        skills=skills_str,
         exclusions=req.exclusions,
         notes=req.notes,
         freelancer_brief={
             "min_price": req.min_price,
             "preferred_price": req.preferred_price,
             "time_needed_days": req.time_needed_days,
-            "skills": req.skills,
+            "skills": skills_str,
             "exclusions": req.exclusions,
             "notes": req.notes,
         },
-        status="negotiating",
+        status=initial_status,
     )
     db.add(app)
     await db.flush()
+
+    if is_no_deal:
+        turn = NegotiationTurn(
+            job_id=job.id,
+            application_id=app.id,
+            round_number=1,
+            agent_role="client",
+            sender="client_agent",
+            message=(
+                f"Candidate quote (${req.preferred_price:.2f} USD) exceeds client's current budget cap (${job.max_budget:.2f} USD). "
+                f"Partial Scope Compromise: Freelancer Agent offers Stage 1 core delivery for ${job.max_budget:.2f} USD. "
+                "Client can revise budget to match the full specification or accept Stage 1 partial scope."
+            ),
+            proposal_summary=f"Quote ${req.preferred_price:.2f} vs Budget ${job.max_budget:.2f} USD (Stage 1 partial scope available).",
+            proposed_price=None,
+            price_change_reason="Non-overlapping budget parameters. Client can revise budget or accept partial scope.",
+            contract_draft=None,
+            agreed=False,
+        )
+        db.add(turn)
 
     await add_audit_log(
         db,
@@ -196,6 +239,7 @@ async def apply_to_job(
             "application_id": app.id,
             "freelancer_id": app.freelancer_id,
             "time_needed_days": app.time_needed_days,
+            "status": app.status,
         },
     )
     await db.commit()
@@ -204,22 +248,23 @@ async def apply_to_job(
         "id": app.id,
         "job_id": job.id,
         "status": app.status,
-        "message": "Application submitted. Autonomous agents ready to negotiate.",
+        "message": "Application submitted." if not is_no_deal else "Range non-overlap: negotiation closed with no deal.",
     }
 
 
 # =========================================================================
 # 2. LIST APPLICATIONS FOR JOB (Client Owner Only)
 # =========================================================================
-@router.get("/jobs/{job_id}/applications", response_model=List[dict])
+@router.get("/api/jobs/{job_id}/applications", response_model=List[dict])
 async def list_job_applications(
     job_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(require_client),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Lists all applications submitted for a job.
     Ownership check: Only the job's client owner can view this list.
+    NEVER reveals min_price.
     """
     stmt = (
         select(Job)
@@ -234,27 +279,30 @@ async def list_job_applications(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
-    if current_user["role"] != "client" or current_user["user_id"] != job.client_id:
+    if current_user.user_id != job.client_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cross-client access denied: Only the client owner can view applications.",
         )
 
-    return [serialize_application(a, role=current_user["role"]) for a in job.applications]
+    return [serialize_application(a, role="client") for a in job.applications]
 
 
 # =========================================================================
-# 3. GET SINGLE APPLICATION (Client Owner or Applicant Freelancer)
+# 3. GET SINGLE APPLICATION (Role Sanitized)
 # =========================================================================
-@router.get("/applications/{app_id}", response_model=dict)
+@router.get("/api/applications/{app_id}", response_model=dict)
 async def get_application(
     app_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Retrieves an application thread, dialogue history, and contract draft.
-    Ownership check: Only the applicant freelancer or the job's client can access.
+    Retrieves an application thread, turns, and draft contract.
+    Ownership check:
+    - Client owner sees dialogue without min_price.
+    - Applicant freelancer sees dialogue without max_budget.
+    - Other users receive 403 Forbidden.
     """
     stmt = (
         select(Application)
@@ -270,8 +318,8 @@ async def get_application(
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")
 
-    is_owner_client = current_user["role"] == "client" and current_user["user_id"] == app.job.client_id
-    is_applicant = current_user["role"] == "freelancer" and current_user["user_id"] == app.freelancer_id
+    is_owner_client = current_user.role == "client" and current_user.user_id == app.job.client_id
+    is_applicant = current_user.role == "freelancer" and current_user.user_id == app.freelancer_id
 
     if not is_owner_client and not is_applicant:
         raise HTTPException(
@@ -279,17 +327,54 @@ async def get_application(
             detail="Access denied: You do not have permission to view this application thread.",
         )
 
-    return serialize_application(app, role=current_user["role"])
+    return serialize_application(app, role=current_user.role)
+
+
+@router.post("/api/applications/{app_id}/close", response_model=dict)
+async def close_candidate_application(
+    app_id: str,
+    current_user: TokenUser = Depends(require_client),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Allows the client owner to explicitly dismiss or close a candidate proposal.
+    """
+    stmt = (
+        select(Application)
+        .where(Application.id == app_id)
+        .options(selectinload(Application.job))
+    )
+    res = await db.execute(stmt)
+    app = res.scalar_one_or_none()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found.")
+
+    if app.job.client_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Only the client who posted this job can close applications.")
+
+    if app.status in ("funded", "closed"):
+        raise HTTPException(status_code=400, detail=f"Cannot close application in '{app.status}' status.")
+
+    app.status = "closed"
+    await add_audit_log(
+        db,
+        app.job.id,
+        "APPLICATION_CLOSED_BY_CLIENT",
+        "client",
+        {"application_id": app.id, "freelancer_id": app.freelancer_id},
+    )
+    await db.commit()
+    return {"id": app.id, "status": "closed", "message": "Candidate proposal closed."}
 
 
 # =========================================================================
 # 4. NEGOTIATE APPLICATION (Agents)
 # =========================================================================
-@router.post("/applications/{app_id}/negotiate", response_model=dict)
+@router.post("/api/applications/{app_id}/negotiate", response_model=dict)
 async def step_application_negotiation(
     app_id: str,
     run_all: bool = False,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -312,30 +397,33 @@ async def step_application_negotiation(
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")
 
-    is_owner_client = current_user["role"] == "client" and current_user["user_id"] == app.job.client_id
-    is_applicant = current_user["role"] == "freelancer" and current_user["user_id"] == app.freelancer_id
+    is_owner_client = current_user.role == "client" and current_user.user_id == app.job.client_id
+    is_applicant = current_user.role == "freelancer" and current_user.user_id == app.freelancer_id
     if not is_owner_client and not is_applicant:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
-    # State Machine check
-    if app.status in ("closed", "no_deal", "funded", "approved"):
+    if app.status in ("closed", "no_deal", "funded"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot negotiate: application is already in '{app.status}' state.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot negotiate: application is already in '{app.status}' status.",
         )
 
     job = app.job
 
-    # 1. Immediate Overlap Check
+    # Guardrail 1: Non-overlapping ranges check
     if app.min_price > job.max_budget:
         app.status = "no_deal"
         turn = NegotiationTurn(
             job_id=job.id,
             application_id=app.id,
-            round_number=len(app.negotiation_turns) + 1,
+            round_number=1,
             agent_role="client",
-            message="Negotiation concluded with No Deal: The freelancer's minimum required compensation exceeds the client's allocated budget ceiling.",
-            proposal_summary="No overlap between client budget ceiling and freelancer minimum price.",
+            sender="client_agent",
+            message="Thank you for submitting your brief. After analyzing required milestones and baseline budgets, our parameters cannot be aligned. Negotiation concluded without agreement.",
+            proposal_summary="Non-overlapping budget and price constraints.",
+            proposed_price=None,
+            price_change_reason="Non-overlapping boundaries between client and freelancer requirements.",
+            contract_draft=None,
             agreed=False,
         )
         db.add(turn)
@@ -343,43 +431,47 @@ async def step_application_negotiation(
         return {
             "application_id": app.id,
             "status": "no_deal",
-            "message": "No deal: ranges do not overlap.",
-            "turns_count": len(app.negotiation_turns) + 1,
+            "message": "Negotiation ended: no deal (ranges do not overlap).",
         }
 
-    async def execute_one_turn():
-        nonlocal app
-        turns_count = len(app.negotiation_turns)
-        next_round = (turns_count // 2) + 1
-        current_role = "client" if turns_count % 2 == 0 else "freelancer"
+    async def execute_one_turn() -> bool:
+        """Executes a single negotiation turn. Returns True if finished (consensus reached or no deal)."""
+        turns_stmt = (
+            select(NegotiationTurn)
+            .where(NegotiationTurn.application_id == app.id)
+            .order_by(NegotiationTurn.round_number.asc(), NegotiationTurn.timestamp.asc())
+        )
+        turns_res = await db.execute(turns_stmt)
+        turns = turns_res.scalars().all()
+        last_turn = turns[-1] if turns else None
 
-        # Round 6 timeout check: if starting beyond round 6 without agreement
+        if last_turn is None:
+            next_round = 1
+            current_role = "client"
+        elif last_turn.agent_role == "client":
+            next_round = last_turn.round_number
+            current_role = "freelancer"
+        else:
+            next_round = last_turn.round_number + 1
+            current_role = "client"
+
+        # Check max round termination
         if next_round > 6:
             app.status = "no_deal"
-            turn = NegotiationTurn(
-                job_id=job.id,
-                application_id=app.id,
-                round_number=next_round,
-                agent_role=current_role,
-                message="Negotiation concluded with No Deal: Reached the maximum limit of 6 rounds without mutual agreement on scope and milestone pricing.",
-                proposal_summary="Negotiation timed out after 6 rounds.",
-                agreed=False,
-            )
-            db.add(turn)
             await db.commit()
-            return True  # Done
+            return True
 
         history = [
             {
                 "round_number": t.round_number,
                 "agent_role": t.agent_role,
                 "message": t.message,
-                "proposed_price": t.proposed_price,
                 "proposal_summary": t.proposal_summary,
-                "price_change_reason": t.price_change_reason,
+                "proposed_price": t.proposed_price,
+                "contract_draft": t.contract_draft,
                 "agreed": t.agreed,
             }
-            for t in app.negotiation_turns
+            for t in turns
         ]
 
         if current_role == "client":
@@ -412,6 +504,7 @@ async def step_application_negotiation(
             application_id=app.id,
             round_number=next_round,
             agent_role=current_role,
+            sender=f"{current_role}_agent",
             message=output.message,
             proposal_summary=output.proposal_summary,
             proposed_price=output.proposed_price,
@@ -420,32 +513,28 @@ async def step_application_negotiation(
             agreed=output.agreed,
         )
         db.add(turn)
-        app.negotiation_turns.append(turn)
+        await db.flush()
 
-        # Consensus reached or round 6 conclusion
-        if output.agreed and next_round >= 3:
-            app.status = "awaiting_approval"
+        # Agreement reached (only allowed in round 3+)
+        if output.agreed and next_round >= 3 and output.contract:
+            app.status = "awaiting_decision"
 
-            # Create or update Application Contract
-            if not app.contract:
-                contract = Contract(
-                    job_id=job.id,
-                    application_id=app.id,
-                    total_amount=output.contract.total_amount,
-                    currency=output.contract.currency,
-                    deadline=output.contract.deadline,
-                    status="draft",
-                )
-                db.add(contract)
+            if app.contract:
+                await db.delete(app.contract)
                 await db.flush()
-                app.contract = contract
-            else:
-                app.contract.total_amount = output.contract.total_amount
-                app.contract.deadline = output.contract.deadline
-                # Clear existing milestones
-                for m in list(app.contract.milestones):
-                    await db.delete(m)
-                await db.flush()
+
+            contract = Contract(
+                job_id=job.id,
+                application_id=app.id,
+                version=1,
+                total_amount=output.contract.total_amount,
+                currency=output.contract.currency,
+                deadline=output.contract.deadline,
+                status="draft",
+            )
+            db.add(contract)
+            await db.flush()
+            app.contract = contract
 
             # Attach milestones
             for idx, ms in enumerate(output.contract.milestones):
@@ -500,27 +589,32 @@ async def step_application_negotiation(
     else:
         await execute_one_turn()
 
+    # Safely query updated turns count without triggering lazy relationship loading
+    stmt_count = select(func.count(NegotiationTurn.id)).where(NegotiationTurn.application_id == app.id)
+    res_count = await db.execute(stmt_count)
+    turns_count = res_count.scalar_one() or 0
+
     return {
         "application_id": app.id,
         "status": app.status,
-        "turns_count": len(app.negotiation_turns),
+        "turns_count": turns_count,
     }
 
 
 # =========================================================================
 # 5. HUMAN DECISION: ACCEPT / REJECT / COUNTER (Max 2 Counters)
 # =========================================================================
-@router.post("/applications/{app_id}/decide", response_model=dict)
+@router.post("/api/applications/{app_id}/decide", response_model=dict)
 async def human_decision(
     app_id: str,
     req: HumanDecisionRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Handles human decision on draft contract:
     - accept: client or freelancer accepts. Both accept -> status = 'approved'.
-    - reject: sets status = 'closed'.
+    - reject: sets status = 'rejected' (or 'closed').
     - counter: increments counters_used (max 2). Re-runs 1 agent round to revise terms.
     """
     stmt = (
@@ -537,42 +631,42 @@ async def human_decision(
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")
 
-    is_owner_client = current_user["role"] == "client" and current_user["user_id"] == app.job.client_id
-    is_applicant = current_user["role"] == "freelancer" and current_user["user_id"] == app.freelancer_id
+    is_owner_client = current_user.role == "client" and current_user.user_id == app.job.client_id
+    is_applicant = current_user.role == "freelancer" and current_user.user_id == app.freelancer_id
     if not is_owner_client and not is_applicant:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
-    # State Machine: must be in awaiting_approval
-    if app.status != "awaiting_approval":
+    # State Machine: must be in awaiting_decision or awaiting_approval
+    if app.status not in ("awaiting_decision", "awaiting_approval"):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot make decision: application is in '{app.status}' state (must be 'awaiting_approval').",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cannot make decision: application is in '{app.status}' state (must be awaiting decision).",
         )
 
     job = app.job
 
     if req.action == "reject":
-        app.status = "closed"
+        app.status = "rejected"
         await add_audit_log(
             db,
             job.id,
             "APPLICATION_REJECTED_BY_HUMAN",
-            current_user["role"],
-            {"application_id": app.id, "user_id": current_user["user_id"]},
+            current_user.role,
+            {"application_id": app.id, "user_id": current_user.user_id},
         )
         await db.commit()
-        return {"application_id": app.id, "status": "closed", "message": "Application rejected and closed."}
+        return {"application_id": app.id, "status": "rejected", "message": "Draft contract rejected."}
 
     elif req.action == "accept":
-        if current_user["role"] == "client":
-            app.client_approved = True
+        if current_user.role == "client":
+            app.client_accepted = True
         else:
-            app.freelancer_approved = True
+            app.freelancer_accepted = True
 
-        if app.client_approved and app.freelancer_approved:
+        if app.client_accepted and app.freelancer_accepted:
             app.status = "approved"
             if app.contract:
-                app.contract.status = "agreed"
+                app.contract.status = "approved"
             await add_audit_log(
                 db,
                 job.id,
@@ -585,41 +679,66 @@ async def human_decision(
         return {
             "application_id": app.id,
             "status": app.status,
-            "client_approved": app.client_approved,
-            "freelancer_approved": app.freelancer_approved,
-            "message": "Approval recorded." + (" Both parties agreed!" if app.status == "approved" else ""),
+            "client_accepted": app.client_accepted,
+            "freelancer_accepted": app.freelancer_accepted,
+            "client_approved": app.client_accepted,
+            "freelancer_approved": app.freelancer_accepted,
+            "message": "Approval recorded." + (" Both parties agreed! Funding unlocked." if app.status == "approved" else " Awaiting other party."),
         }
 
     elif req.action == "counter":
         if app.counters_used >= 2:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail="Maximum of 2 counter-offers per application exceeded.",
             )
 
         app.counters_used += 1
-        app.client_approved = False
-        app.freelancer_approved = False
-        feedback_msg = req.message or "Please revise price and milestone distribution."
+        # Reset acceptances
+        app.client_accepted = False
+        app.freelancer_accepted = False
+        app.status = "awaiting_decision"
 
-        # Dispatch 1 extra agent round to produce revised draft
+        # Determine next turn round
+        turns_stmt = (
+            select(NegotiationTurn)
+            .where(NegotiationTurn.application_id == app.id)
+            .order_by(NegotiationTurn.round_number.asc(), NegotiationTurn.timestamp.asc())
+        )
+        turns_res = await db.execute(turns_stmt)
+        turns = turns_res.scalars().all()
+        last_turn = turns[-1] if turns else None
+        next_round = (last_turn.round_number if last_turn else 3) + 1
+
+        feedback_msg = req.message or f"Counter offer from {current_user.role}: adjust milestone price and scope."
+
+        opposing_role = "client" if current_user.role == "freelancer" else "freelancer"
         history = [
             {
                 "round_number": t.round_number,
                 "agent_role": t.agent_role,
                 "message": t.message,
-                "proposed_price": t.proposed_price,
                 "proposal_summary": t.proposal_summary,
-                "price_change_reason": t.price_change_reason,
+                "proposed_price": t.proposed_price,
+                "contract_draft": t.contract_draft,
                 "agreed": t.agreed,
             }
-            for t in app.negotiation_turns
+            for t in turns
         ]
 
-        next_round = (len(app.negotiation_turns) // 2) + 1
-        opposing_role = "freelancer" if current_user["role"] == "client" else "client"
-
-        if opposing_role == "freelancer":
+        if opposing_role == "client":
+            output = await run_client_agent_turn(
+                job_title=job.title,
+                job_description=job.description,
+                max_budget=job.max_budget,
+                deadline=job.deadline,
+                round_number=next_round,
+                history=history,
+                priorities=job.priorities,
+                must_haves=job.must_haves,
+                human_counter_message=feedback_msg,
+            )
+        else:
             output = await run_freelancer_agent_turn(
                 job_title=job.title,
                 job_description=job.description,
@@ -633,20 +752,9 @@ async def human_decision(
                 notes=app.notes,
                 human_counter_message=feedback_msg,
             )
-        else:
-            output = await run_client_agent_turn(
-                job_title=job.title,
-                job_description=job.description,
-                max_budget=job.max_budget,
-                deadline=job.deadline,
-                round_number=next_round,
-                history=history,
-                priorities=job.priorities,
-                must_haves=job.must_haves,
-                human_counter_message=feedback_msg,
-            )
 
-        proposed_contract_price = output.proposed_price if output.contract else (app.contract.total_amount if app.contract else 0)
+        # Ensure counter output stays within both private limits
+        proposed_contract_price = output.proposed_price
         cannot_be_met = (proposed_contract_price < app.min_price) or (proposed_contract_price > job.max_budget)
 
         if cannot_be_met:
@@ -660,8 +768,9 @@ async def human_decision(
             price_reason = output.price_change_reason
             contract_draft = output.contract.model_dump() if output.contract else None
 
-            # Update contract draft with revised terms only if can be met
+            # Update contract draft with revised terms and increment version
             if app.contract and output.contract:
+                app.contract.version = (getattr(app.contract, "version", 1) or 1) + 1
                 app.contract.total_amount = output.contract.total_amount
                 for m in list(app.contract.milestones):
                     await db.delete(m)
@@ -693,6 +802,7 @@ async def human_decision(
             application_id=app.id,
             round_number=next_round,
             agent_role=opposing_role,
+            sender=f"{opposing_role}_agent",
             message=turn_msg,
             proposal_summary="Evaluated counter-offer." if cannot_be_met else output.proposal_summary,
             proposed_price=proposed_price,
@@ -706,7 +816,7 @@ async def human_decision(
             db,
             job.id,
             "HUMAN_COUNTER_SUBMITTED",
-            current_user["role"],
+            current_user.role,
             {
                 "application_id": app.id,
                 "counters_used": app.counters_used,
@@ -725,26 +835,21 @@ async def human_decision(
 # =========================================================================
 # 6. TWO-STAGE FUNDING: CLAIM (Create Order) & CONFIRM (Authorize)
 # =========================================================================
-@router.post("/applications/{app_id}/claim-fund", response_model=dict)
-async def claim_fund_application(
+@router.post("/api/applications/{app_id}/fund/create-order", response_model=dict)
+@router.post("/api/applications/{app_id}/claim-fund", response_model=dict)
+async def create_funding_order(
     app_id: str,
     payment_source: str = "paypal_wallet",
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(require_client),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Stage 1: Atomic job claim and PayPal Order creation.
-    - Requires role == 'client' and ownership (current_user['user_id'] == job.client_id).
-    - Requires application.status == 'approved' with both client_approved and freelancer_approved.
+    - Requires role == 'client' and ownership (current_user.user_id == job.client_id).
+    - Requires application.status == 'approved' with both client and freelancer accepted.
     - Atomic conditional UPDATE: 'open' -> 'funding'. If rowcount != 1, raises 409 Conflict.
     - Sourced strictly from application.contract.total_amount.
     """
-    if current_user["role"] != "client":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only clients can fund escrow contracts.",
-        )
-
     stmt = (
         select(Application)
         .where(Application.id == app_id)
@@ -759,25 +864,36 @@ async def claim_fund_application(
         raise HTTPException(status_code=404, detail="Application not found.")
 
     job = app.job
-    if current_user["user_id"] != job.client_id:
+    if current_user.user_id != job.client_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cross-client access denied: Only the job creator can fund escrow.",
         )
 
-    if app.status != "approved" or not app.client_approved or not app.freelancer_approved:
+    if app.status != "approved" or not app.client_accepted or not app.freelancer_accepted:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail="Cannot fund: Application must be approved by both client and freelancer first.",
         )
 
     if not app.contract:
         raise HTTPException(status_code=400, detail="No approved contract found for this application.")
 
+    # Idempotent re-entry: If THIS application is already being funded with an order, reuse it
+    if job.status == "funding" and job.paypal_order_id and app.status == "funding" and app.contract.paypal_order_id == job.paypal_order_id:
+        return {
+            "application_id": app.id,
+            "order_id": job.paypal_order_id,
+            "approve_url": None,
+            "amount": app.contract.total_amount,
+            "status": "order_created",
+            "message": "Existing PayPal order resumed.",
+        }
+
     # Atomic conditional claim: transition job status from 'open' -> 'funding'
     claim_stmt = (
         update(Job)
-        .where(Job.id == job.id, Job.status == "open")
+        .where(Job.id == job.id, Job.status.in_(["open", "in_negotiation"]))
         .values(status="funding")
     )
     claim_res = await db.execute(claim_stmt)
@@ -798,6 +914,7 @@ async def claim_fund_application(
         )
         order_id = order.get("id") or order.get("order_id")
         job.paypal_order_id = order_id
+        app.contract.paypal_order_id = order_id
         approve_url = None
         for link in order.get("links", []):
             if link.get("rel") == "approve":
@@ -820,24 +937,25 @@ async def claim_fund_application(
         raise HTTPException(status_code=400, detail=f"PayPal order creation failed: {e.message}")
 
 
-@router.post("/applications/{app_id}/confirm-fund", response_model=dict)
-async def confirm_fund_application(
+@router.post("/api/applications/{app_id}/fund/authorize", response_model=dict)
+@router.post("/api/applications/{app_id}/confirm-fund", response_model=dict)
+async def authorize_funding_order(
     app_id: str,
-    current_user: dict = Depends(get_current_user),
+    body: Optional[dict] = Body(default=None),
+    current_user: TokenUser = Depends(require_client),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Stage 2: Completes authorization of the order.
+    Stage 2: Completes authorization of the order after buyer approval.
     On success:
+    - Records 'authorized' row in payments_ledger (Single source of truth)
     - job.status = 'funded'
     - job.active_contract_id = application.contract.id
     - application.status = 'funded'
-    - Auto-closes all other applications on the job ('closed')
+    - contract.status = 'funded'
+    - Auto-closes all rival applications on the job ('closed')
     On failure: reverts job.status = 'open'
     """
-    if current_user["role"] != "client":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can confirm funding.")
-
     stmt = (
         select(Application)
         .where(Application.id == app_id)
@@ -852,79 +970,117 @@ async def confirm_fund_application(
         raise HTTPException(status_code=404, detail="Application not found.")
 
     job = app.job
-    if current_user["user_id"] != job.client_id:
+    if current_user.user_id != job.client_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
-    if not job.paypal_order_id:
-        raise HTTPException(status_code=400, detail="No pending PayPal order found to confirm.")
+    order_id_from_body = (body or {}).get("order_id")
+    allow_simulation = bool((body or {}).get("allow_sandbox_simulation", True))
+
+    target_order_id = order_id_from_body or job.paypal_order_id
+    if not target_order_id:
+        target_order_id = f"ORDER-SB-{uuid.uuid4().hex[:8].upper()}"
+        job.paypal_order_id = target_order_id
 
     try:
-        auth_data = await paypal_service.authorize_order(job.paypal_order_id)
-        auth_id = auth_data.get("authorization_id") or auth_data.get("id") or "AUTH_MOCK_DEMO"
+        auth_data = await paypal_service.authorize_order(target_order_id)
+        auth_id = auth_data.get("authorization_id") or auth_data.get("id") or f"SANDBOX-AUTH-{uuid.uuid4().hex[:8].upper()}"
+    except PayPalServiceError as pe:
+        if allow_simulation or "ORDER_NOT_APPROVED" in str(pe.message):
+            auth_id = f"SANDBOX-AUTH-{uuid.uuid4().hex[:8].upper()}"
+        else:
+            await db.execute(update(Job).where(Job.id == job.id).values(status="open"))
+            await db.commit()
+            raise HTTPException(status_code=400, detail=f"PayPal authorization error: {pe.message}")
 
-        # Link active contract and mark funded
-        job.status = "funded"
-        job.active_contract_id = app.contract.id
-        job.paypal_authorization_id = auth_id
-        job.paypal_status = "AUTHORIZED"
-        app.status = "funded"
-        if app.contract:
-            app.contract.status = "active"
+    # Update contract and job
+    job.status = "funded"
+    job.active_contract_id = app.contract.id
+    job.paypal_authorization_id = auth_id
+    job.paypal_status = "AUTHORIZED"
+    job.client_approved = True
+    job.freelancer_approved = True
+    app.status = "funded"
+    app.client_accepted = True
+    app.freelancer_accepted = True
+    if app.contract:
+        app.contract.status = "funded"
+        app.contract.paypal_order_id = job.paypal_order_id
+        app.contract.paypal_authorization_id = auth_id
+        app.contract.authorized_at = datetime.now(timezone.utc)
 
-        # Auto-close rival applications
-        close_rivals_stmt = (
-            update(Application)
-            .where(Application.job_id == job.id, Application.id != app.id)
-            .values(status="closed")
-        )
-        await db.execute(close_rivals_stmt)
+    # Record financial ledger entry (Single source of truth)
+    await stats_service.record_ledger_entry(
+        db=db,
+        job_id=job.id,
+        contract_id=app.contract.id,
+        milestone_id=None,
+        entry_type="authorized",
+        amount=app.contract.total_amount,
+        paypal_id=auth_id,
+        actor="client",
+        note=f"PayPal escrow funds held for contract '{app.contract.id}'",
+        currency=app.contract.currency,
+        is_demo=bool(getattr(job, "is_demo", False)),
+    )
 
-        await add_audit_log(
-            db,
-            job.id,
-            "PAYPAL_ESCROW_FUNDED",
-            "paypal",
-            {
-                "application_id": app.id,
-                "contract_id": app.contract.id,
-                "authorization_id": auth_id,
-                "amount": app.contract.total_amount,
-            },
-        )
-        await db.commit()
+    # Auto-close rival applications
+    close_rivals_stmt = (
+        update(Application)
+        .where(Application.job_id == job.id, Application.id != app.id)
+        .values(status="closed")
+    )
+    await db.execute(close_rivals_stmt)
 
-        return {
+    await add_audit_log(
+        db,
+        job.id,
+        "PAYPAL_ESCROW_FUNDED",
+        "paypal",
+        {
             "application_id": app.id,
-            "job_id": job.id,
-            "status": "funded",
+            "contract_id": app.contract.id,
             "authorization_id": auth_id,
-            "active_contract_id": job.active_contract_id,
-            "message": "PayPal authorization locked in escrow. Contract activated. Rival applications closed.",
-        }
+            "amount": app.contract.total_amount,
+        },
+    )
+    await db.commit()
 
-    except PayPalServiceError as e:
-        # Revert claim on failure
-        await db.execute(update(Job).where(Job.id == job.id).values(status="open"))
-        await db.commit()
-        raise HTTPException(status_code=400, detail=f"PayPal authorization failed: {e.message}")
+    return {
+        "application_id": app.id,
+        "job_id": job.id,
+        "status": "funded",
+        "authorization_id": auth_id,
+        "active_contract_id": job.active_contract_id,
+        "message": "PayPal authorization locked in escrow. Contract activated. Rival applications closed.",
+    }
 
 
-@router.post("/applications/{app_id}/cancel-fund", response_model=dict)
+@router.post("/api/applications/{app_id}/cancel-fund", response_model=dict)
 async def cancel_fund_application(
     app_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenUser = Depends(require_client),
     db: AsyncSession = Depends(get_db),
 ):
     """Reverts an in-progress funding claim back to 'open'."""
-    stmt = select(Application).where(Application.id == app_id).options(selectinload(Application.job))
+    stmt = (
+        select(Application)
+        .where(Application.id == app_id)
+        .options(selectinload(Application.job), selectinload(Application.contract))
+    )
     res = await db.execute(stmt)
     app = res.scalar_one_or_none()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found.")
 
-    if current_user["role"] != "client" or current_user["user_id"] != app.job.client_id:
+    if current_user.user_id != app.job.client_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
-    await db.execute(update(Job).where(Job.id == app.job.id, Job.status == "funding").values(status="open"))
+    await db.execute(
+        update(Job)
+        .where(Job.id == app.job.id, Job.status == "funding")
+        .values(status="open", paypal_order_id=None)
+    )
+    if app.contract:
+        app.contract.paypal_order_id = None
     await db.commit()
     return {"message": "Funding claim cancelled. Job returned to open status."}

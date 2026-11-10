@@ -20,3 +20,4 @@ export { default as Skeleton } from "./Skeleton";
 export { default as CopyableId } from "./CopyableId";
 export { default as PageHeader } from "./PageHeader";
 export { default as NextStepCard } from "./NextStepCard";
+export { default as AccountSwitcher } from "./AccountSwitcher";

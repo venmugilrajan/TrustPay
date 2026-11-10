@@ -1,10 +1,13 @@
+"use client";
+
 import React from "react";
-import Card from "./Card";
+import { cn } from "@/lib/utils";
 
 export interface StatCardProps {
   label: string;
   value: string | number;
   subtext?: string;
+  helperText?: string;
   trend?: string;
   icon?: React.ReactNode;
   className?: string;
@@ -14,31 +17,42 @@ export default function StatCard({
   label,
   value,
   subtext,
+  helperText,
   trend,
   icon,
   className = "",
 }: StatCardProps) {
+  const displaySubtext = subtext || helperText;
+
   return (
-    <Card className={`flex flex-col justify-between ${className}`} padding="md">
+    <div
+      className={cn(
+        "glass p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-glass-strong",
+        className
+      )}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-content-secondary uppercase tracking-wider">
+        <span className="text-xs font-semibold text-content-secondary uppercase tracking-wider">
           {label}
         </span>
-        {icon && <span className="text-content-muted">{icon}</span>}
-      </div>
-
-      <div className="mt-3">
-        <div className="text-2xl lg:text-3xl font-bold font-serif text-content-primary">
-          {value}
-        </div>
-        {(subtext || trend) && (
-          <div className="mt-1 flex items-center gap-2 text-xs text-content-muted">
-            {trend && <span className="font-medium text-primary">{trend}</span>}
-            {subtext && <span>{subtext}</span>}
+        {icon && (
+          <div className="w-8 h-8 rounded-full bg-surface/80 flex items-center justify-center text-content-muted border border-border shadow-subtle">
+            {icon}
           </div>
         )}
       </div>
-    </Card>
+
+      <div className="mt-4">
+        <div className="text-2xl sm:text-3xl font-bold font-serif text-content-primary tracking-tight">
+          {value}
+        </div>
+        {(displaySubtext || trend) && (
+          <div className="mt-1.5 flex items-center gap-2 text-xs text-content-muted leading-relaxed">
+            {trend && <span className="font-semibold text-accent">{trend}</span>}
+            {displaySubtext && <span>{displaySubtext}</span>}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
-

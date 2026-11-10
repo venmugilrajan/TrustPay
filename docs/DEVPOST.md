@@ -18,7 +18,7 @@ TrustPay is an autonomous escrow and milestone verification platform built on Pa
 1. **AI-to-AI Deal Negotiation**: A Client Agent (buyer advocate) and Freelancer Agent (worker advocate) negotiate terms, milestones, and testable acceptance criteria across alternating rounds.
 2. **Strict Invariant Validation**: Milestone amounts must sum strictly to the total contract budget, guaranteed in code via Pydantic validators.
 3. **PayPal Sandbox Authorization Escrow**: Once both parties approve the contract, TrustPay creates a PayPal Order with `intent: AUTHORIZE`. Funds are verified and held—not captured—guaranteeing payment security for both sides without premature custody.
-4. **Isolated Sandbox Code Execution**: Code submissions run in an isolated container sandbox (zero network, memory limits, 30s timeout).
+4. **Pluggable Isolated Sandbox (FAIL-CLOSED)**: Untrusted code submissions execute in a pluggable isolated environment (`e2b` cloud microVM, `docker` container with `--network none`, `disabled`, or `mock`). Code is **never executed on the host system**; if the provider is unavailable, it fails closed to `Needs Manual Review`. When using `e2b`, deliverable code is sent to the isolated E2B microVM. When `disabled`, the UI explicitly displays `"Tests were not executed"`.
 5. **AI Judge & Automated Captures**: An impartial Judge Agent evaluates deliverables against criteria and test logs:
    - **Pass (score >= 0.85)**: Captures 100% of the milestone via PayPal (`final_capture: true` on the final milestone).
    - **Partial (0.50 to 0.85)**: Proportional PayPal capture (`amount * score`) with feedback and one resubmission.
@@ -32,8 +32,8 @@ TrustPay is an autonomous escrow and milestone verification platform built on Pa
 - **Backend**: FastAPI (Python 3.11+), SQLAlchemy async session, SQLite (Postgres-ready via `DATABASE_URL`).
 - **Payments**: PayPal Orders v2 REST API (`intent: AUTHORIZE`, partial captures, voids, refunds, reauthorization checks, webhook signature verification). All PayPal calls are strictly encapsulated in `backend/services/paypal_service.py`.
 - **AI Intelligence**: Groq API (`openai/gpt-oss-120b` & `qwen/qwen3.8-27b`) for sub-second agent negotiations and Anthropic Claude fallback (`backend/services/llm_service.py`), utilizing structured Pydantic JSON schemas, low temperature (`0.2`), automatic retry loops, and adversarial prompt-injection guardrails.
-- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide icons, editorial fintech design system (Fraunces serif + Inter sans on a warm cream canvas #F6F0E4), and dual dedicated portals: Client Portal (`/client`) for project creation and PayPal escrow funding, Freelancer Portal (`/freelancer`) for deliverables and payouts, plus an evaluator Demo Hub (`/demo`).
-- **Sandbox**: Dual-mode runner supporting Docker containers (`--network none`) and local isolated process execution with memory and execution timeouts.
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Lucide icons, modern fintech design system (Fraunces serif + Inter sans on a crisp white canvas #FFFFFF with #F7F8FA surfaces and #0E9F6E escrow emerald), and dual dedicated portals: Client Portal (`/client`) for project creation and PayPal escrow funding, Freelancer Portal (`/freelancer`) for deliverables and payouts, plus an evaluator Demo Hub (`/demo`).
+- **Sandbox**: Pluggable code sandbox supporting E2B cloud microVMs (`e2b`), Docker (`docker` with `--network none`, 256MB memory cap, 1 CPU), and static review mode (`disabled`). Fully fail-closed with zero host execution.
 - **Deployment**: Render-ready with `render.yaml` and production `Dockerfile`.
 
 ---

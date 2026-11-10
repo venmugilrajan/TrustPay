@@ -11,14 +11,15 @@
 
 ---
 
-### [0:15 - 0:55] AI Multi-Agent Negotiation
-- **Visual**: Screen capture on TrustPay. User creates a job: *"Zero-Knowledge Identity Verification Module ($1,400 max budget)"*. User clicks *"Start AI Negotiation"*. The transcript streams in real-time.
+### [0:15 - 0:55] Application & AI Multi-Agent Negotiation
+- **Visual**: Screen capture on TrustPay. Maya Patel creates a job: *"Zero-Knowledge Proof Rollup Verifier ($1,500 max budget, strictly private)"*. Arjun Kumar browses open opportunities from the Freelancer Portal and submits an application with his private price floor ($1,000). The autonomous negotiation starts, streaming in real-time.
 - **Narrator**:
-  > "The client posts a job with a simple description and budget. Immediately, two specialized AI agents step in.
-  > The **Client Agent** protects the buyer's budget and demands strict automated acceptance criteria with test weights.
-  > The **Freelancer Agent** advocates for the worker, negotiating fair pay and realistic deadlines.
-  > Watch them alternate turns in real-time: adhering to a mandatory minimum of three rounds of rigorous counter-offers and price rationales, they converge on a balanced $1,300 agreement split into two verified milestones. Notice how milestone sums strictly equal the total amount.
-  > Both the client and freelancer inspect the contract and click **Approve**."
+  > "The client posts a job with their private budget cap. A freelancer reviews the open opportunity and applies with their confidential minimum price floor. Neither party ever sees the other's private reservation price.
+  > Immediately, two specialized AI agents step in.
+  > The **Client Agent** advocates for the buyer, demanding rigorous testable acceptance criteria with weighted scores.
+  > The **Freelancer Agent** advocates for the worker, negotiating fair milestone pacing and realistic timelines.
+  > Adhering to a mandatory minimum of three alternating rounds of economic bargaining, they converge on a balanced $1,250 agreement split into two verified milestones. Notice how milestone sums strictly equal the total contract amount.
+  > Both the client and freelancer review the draft contract and click **Accept**."
 
 ---
 

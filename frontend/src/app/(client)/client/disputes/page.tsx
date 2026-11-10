@@ -117,7 +117,7 @@ export default function ClientDisputesPage() {
 
                     <div className="mt-2 pt-2 border-t border-border-subtle flex items-center justify-between text-xs">
                       <span className="font-serif font-bold text-content-primary">
-                        ${item.milestone.amount.toFixed(2)} USD
+                        ${Number(item.milestone?.amount || 0).toFixed(2)} USD
                       </span>
                       <span className="text-content-secondary font-medium">
                         Ruling: {item.dispute.ruling || "Under Review"}
@@ -174,13 +174,13 @@ export default function ClientDisputesPage() {
                       <div>
                         <span className="text-content-muted block">Released to Freelancer:</span>
                         <span className="text-base font-serif font-bold text-success">
-                          ${selected.dispute.amount_to_capture.toFixed(2)} USD
+                          ${Number(selected.dispute?.amount_to_capture || 0).toFixed(2)} USD
                         </span>
                       </div>
                       <div>
                         <span className="text-content-muted block">Refunded to Client:</span>
                         <span className="text-base font-serif font-bold text-accent">
-                          ${selected.dispute.amount_to_refund.toFixed(2)} USD
+                          ${Number(selected.dispute?.amount_to_refund || 0).toFixed(2)} USD
                         </span>
                       </div>
                     </div>

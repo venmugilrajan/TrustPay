@@ -1,7 +1,9 @@
 import pytest
+from unittest.mock import patch
 from pydantic import BaseModel
 from backend.services.llm_service import LLMService
 from backend.services.paypal_service import PayPalService
+from backend.services.sandbox_service import DockerSandboxProvider
 from sandbox.runner import CodeSandboxRunner
 from backend.core.config import settings
 
@@ -53,13 +55,12 @@ async def test_live_paypal_sandbox_oauth_and_order():
 
 @pytest.mark.asyncio
 async def test_sandbox_runner_fails_closed_without_docker():
-    """Verifies that sandbox runner strictly fails closed when Docker is absent and fallback is disabled."""
-    runner = CodeSandboxRunner()
-    settings.ALLOW_LOCAL_SANDBOX_FALLBACK = False
-    runner.has_docker = False
-
-    res = await runner.execute_code_tests(code_content="print('hello')")
-    assert res["success"] is False
-    assert res["runner_mode"] == "docker_failed_closed"
-    assert "SANDBOX SECURITY ERROR" in res["stderr"]
-    assert res.get("security_error") is True
+    """Verifies that Docker sandbox provider strictly fails closed when Docker is absent."""
+    provider = DockerSandboxProvider()
+    with patch.object(DockerSandboxProvider, "is_docker_available", return_value=False):
+        res = await provider.execute(code_content="print('hello')")
+        assert res["success"] is False
+        assert res["executed"] is False
+        assert res["runner_mode"] == "docker_failed_closed"
+        assert res["needs_manual_review"] is True
+        assert "DOCKER SECURITY ERROR" in res["stderr"]

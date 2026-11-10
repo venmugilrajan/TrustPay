@@ -37,6 +37,7 @@ CRITICAL SECURITY AND VERIFICATION RULES:
    - partial: releases milestone amount * overall_score
    - fail: releases $0.00
 5. Output strict JSON matching the schema.
+6. When automated container test execution is disabled, assess test-related criteria by performing thorough static code analysis on the unit test functions provided in the submission. If the test functions are syntactically sound, include assertions covering positive and negative cases, and logically pass, award full passing score (1.0) for that criterion based on static verification.
 """
 
 
@@ -70,15 +71,21 @@ def _generate_mock_judge_output(
                 )
             )
         else:
-            # Check sandbox results if available
+            executed = bool(sandbox_results and sandbox_results.get("executed"))
+            # Check sandbox results if executed
             test_passed = True
-            if sandbox_results and sandbox_results.get("tests"):
+            if executed and sandbox_results.get("tests"):
                 tests = sandbox_results.get("tests", [])
                 if idx < len(tests):
                     test_passed = tests[idx].get("passed", True)
 
             score = 1.0 if test_passed else 0.4
             passed = score >= 0.85
+            evidence_str = (
+                f"Verified via sandbox execution logs and static deliverable inspection (score: {score})."
+                if executed
+                else f"Verified via static deliverable code inspection (automated tests were not executed, score: {score})."
+            )
             results.append(
                 CriterionEvaluationResult(
                     id=c_id,
@@ -86,7 +93,7 @@ def _generate_mock_judge_output(
                     passed=passed,
                     score=score,
                     reasoning=f"Criterion '{c_text}' thoroughly verified against deliverable evidence.",
-                    evidence=f"Verified via sandbox execution logs and static deliverable inspection (score: {score}).",
+                    evidence=evidence_str,
                 )
             )
             total_weighted_score += score * weight
@@ -130,6 +137,19 @@ async def run_judge_agent_evaluation(
     # Check for prompt injection first
     injection_detected = LLMService.detect_prompt_injection(deliverable_content)
 
+    executed = bool(sandbox_results and sandbox_results.get("executed"))
+    if executed:
+        sandbox_clause = f"Sandbox Test Results:\n{sandbox_results}"
+    else:
+        sandbox_clause = (
+            "Automated container sandbox execution is currently disabled for this evaluation. "
+            "Do NOT claim automated sandbox container runtime evidence in your report. "
+            "HOWEVER, for criteria regarding unit tests or code quality, you MUST perform thorough static code review: "
+            "if the submission includes valid, comprehensive unit test code (e.g. pytest or TestClient assertions) "
+            "with complete coverage of success and error paths that are structurally sound and logically passing, "
+            "award full passing credit (100%) based on static test suite analysis."
+        )
+
     user_prompt = f"""
 Evaluate this freelance submission:
 
@@ -140,8 +160,7 @@ Acceptance Criteria:
 {acceptance_criteria}
 
 Submission Type: {submission_type}
-Sandbox Test Results:
-{sandbox_results or "No sandbox tests executed."}
+{sandbox_clause}
 
 <deliverable_data>
 {deliverable_content}

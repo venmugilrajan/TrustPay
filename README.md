@@ -21,14 +21,14 @@ Freelancers and students often don't get paid after completing work. Clients fea
 ---
 
 ## 🎨 Design & Experience
-TrustPay features a calm, trustworthy fintech editorial aesthetic inspired by Stripe Climate, Wise, and Notion:
-- **Palette**: Warm cream canvas (`#F6F0E4`), crisp paper-white cards (`#FFFDF8`), and deep woodland green primary actions (`#24493D`).
-- **Typography**: Editorial serif (**Fraunces**) for titles and milestone amounts, clean sans-serif (**Inter**) for UI controls, and strict monospace (**JetBrains Mono**) strictly isolated to PayPal IDs and test runners.
+TrustPay features a modern, accessible fintech design system built for maximum clarity and trustworthiness:
+- **Palette**: Pure white canvas (`#FFFFFF`), crisp surface panels (`#F7F8FA`), deep navy text (`#0B1F3A`), and emerald accent for escrow protection (`#0E9F6E`).
+- **Typography**: Editorial serif (**Fraunces**) for titles and milestone amounts, clean sans-serif (**Inter**) for UI controls, and strict monospace strictly isolated to PayPal transaction IDs and test runner logs.
 - **Dual Dedicated Portals**:
-  - **Client Portal (`/client/...`)**: Post a Job 3-step wizard, contract roadmap, PayPal escrow authorization, payment activity ledger, and dispute arbitration.
-  - **Freelancer Portal (`/freelancer/...`)**: Available opportunities, actionable *"Next action needed"* banner, acceptance criteria checklist, drag-and-drop file uploader, AI Judge score ring, and earnings ledger.
-  - **Role Selection Gateway (`/`)**: 3-step explanation with clean entry cards for clients and freelancers.
-  - **Demo Hub (`/demo`)**: Standalone evaluator sandbox with 1-click seeding, reset controls, and live state metrics.
+  - **Client Portal (`/client/...`)**: Post a Job 3-step wizard with private maximum budget, applicant review, autonomous negotiation thread, PayPal escrow authorization, payment ledger, and disputes.
+  - **Freelancer Portal (`/freelancer/...`)**: Available opportunities (with strict privacy protection hiding client maximum budget), private floor application form, deliverable submission workspace, AI Judge score ring, and earnings ledger.
+  - **Home Gateway (`/`)**: High-performance animated landing page featuring a 4-phase interactive story simulation loop and role entrance cards.
+  - **Demo Hub (`/demo`)**: Standalone evaluator sandbox with 1-click seeding for 3 verified scenarios (Full Capture, Partial Delivery, Active Dispute), reset controls, and single-source-of-truth ledger metrics.
 
 ---
 
@@ -55,9 +55,11 @@ flowchart TD
         Database[("SQLite / PostgreSQL<br/>SQLAlchemy Async")]
     end
 
-    subgraph SandboxEnv ["Isolated Execution Sandbox"]
-        Runner["sandbox/runner.py<br/>(30s Timeout / Memory Limit / No Net)"]
-        DockerContainer["Docker / Subprocess Isolation"]
+    subgraph SandboxEnv ["Pluggable Isolated Sandbox (FAIL-CLOSED)"]
+        Runner["backend/services/sandbox_service.py<br/>(SANDBOX_PROVIDER: e2b | docker | disabled | mock)"]
+        E2BProvider["E2B Cloud MicroVM (E2B SDK)<br/>(Disposable microVM per run)"]
+        DockerProvider["Docker Container (--network none)<br/>(256MB RAM / 1 CPU / 30s timeout)"]
+        DisabledProvider["Disabled Mode<br/>(Static AI review; 'Tests were not executed')"]
     end
 
     subgraph PayPalSandbox ["PayPal Sandbox API"]
@@ -118,17 +120,23 @@ git clone https://github.com/venmugilrajan/TrustPay.git
 cd TrustPay
 cp .env.example .env
 ```
-Edit `.env` (TrustPay includes simulated sandbox fallbacks if keys are not yet configured):
+Edit `.env` (TrustPay supports live PayPal sandbox, Groq AI, and pluggable code sandboxes):
 ```env
 # AI Provider (Groq high-speed inference or Claude)
 GROQ_API_KEY=your_groq_api_key
-GROQ_MODEL=openai/gpt-oss-20b
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # PayPal Developer Sandbox Credentials
 PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_sandbox_client_secret
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+
+# Pluggable Code Sandbox Provider: "e2b" | "docker" | "disabled" (FAIL CLOSED)
+SANDBOX_PROVIDER=disabled
+E2B_API_KEY=your_e2b_api_key_here
 ```
+
+> **Privacy & Execution Note**: When `SANDBOX_PROVIDER=e2b` is configured, deliverable submission code and Judge-generated tests are sent securely to E2B's isolated cloud microVM. If `disabled`, the AI Judge performs static criteria analysis and the UI displays **"Tests were not executed"**. Untrusted code is **NEVER executed on the host system**. If a chosen provider errors or is unavailable, the pipeline strictly **fails closed** and marks the milestone as **Needs Manual Review**.
 
 ### 2. Start Backend
 ```bash

@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any, Literal
+from typing import List, Optional, Dict, Any, Literal, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
@@ -63,12 +63,12 @@ class JobCreateRequest(BaseModel):
 
 
 class ApplicationCreateRequest(BaseModel):
-    freelancer_id: Optional[str] = Field(default="freelancer_demo")
-    freelancer_name: Optional[str] = Field(default="Senior Full-Stack Engineer")
+    freelancer_id: Optional[str] = Field(default="freelancer_arjun")
+    freelancer_name: Optional[str] = Field(default="Arjun Kumar")
     min_price: float = Field(gt=0, description="PRIVATE: Minimum acceptable price floor")
     preferred_price: float = Field(gt=0, description="Target counter-offer quote")
     time_needed_days: int = Field(gt=0, default=14)
-    skills: Optional[str] = Field(default=None)
+    skills: Optional[Union[List[str], str]] = Field(default=None)
     exclusions: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
 

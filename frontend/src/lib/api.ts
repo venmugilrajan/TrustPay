@@ -1,31 +1,125 @@
-let rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+let rawBase = process.env.NEXT_PUBLIC_API_URL || "/api";
 if (rawBase.endsWith("/")) rawBase = rawBase.slice(0, -1);
 export const API_BASE = rawBase.endsWith("/api") ? rawBase : `${rawBase}/api`;
 
-// Auth token storage helper
+// Auth token storage helper with role-scoped isolation
 const TOKEN_KEY = "trustpay_auth_token";
 
-export function getStoredToken(): string | null {
+export function getStoredToken(role?: "client" | "freelancer"): string | null {
   if (typeof window === "undefined") return null;
+  if (role) {
+    return localStorage.getItem(`trustpay_${role}_token`) || localStorage.getItem(TOKEN_KEY);
+  }
+  const path = window.location.pathname;
+  if (path.startsWith("/freelancer")) {
+    return localStorage.getItem("trustpay_freelancer_token") || localStorage.getItem(TOKEN_KEY);
+  }
+  if (path.startsWith("/client")) {
+    return localStorage.getItem("trustpay_client_token") || localStorage.getItem(TOKEN_KEY);
+  }
   return localStorage.getItem(TOKEN_KEY);
 }
 
-export function setStoredToken(token: string) {
+export function setStoredToken(token: string, role?: "client" | "freelancer") {
   if (typeof window !== "undefined") {
     localStorage.setItem(TOKEN_KEY, token);
+    if (role) {
+      localStorage.setItem(`trustpay_${role}_token`, token);
+    }
+  }
+}
+
+export interface DemoUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "client" | "freelancer";
+  title?: string;
+}
+
+export const DEMO_USERS: DemoUser[] = [
+  { id: "client_maya", name: "Maya Patel", email: "maya@technova.io", role: "client", title: "Founder, TechNova" },
+  { id: "client_northwind", name: "Northwind Studio", email: "ops@northwind.design", role: "client", title: "Product Studio Lead" },
+  { id: "freelancer_arjun", name: "Arjun Kumar", email: "arjun@freelance.dev", role: "freelancer", title: "Full-Stack & Systems Engineer" },
+  { id: "freelancer_sofia", name: "Sofia Reyes", email: "sofia@cloudarch.io", role: "freelancer", title: "Backend & Data Pipeline Specialist" },
+];
+
+export function getStoredUser(role?: "client" | "freelancer"): DemoUser | null {
+  if (typeof window === "undefined") return null;
+  const key = role ? `trustpay_${role}_user` : "trustpay_current_user";
+  const raw = localStorage.getItem(key);
+  if (raw) {
+    try { return JSON.parse(raw); } catch {}
+  }
+  return null;
+}
+
+export function setStoredUser(user: DemoUser) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("trustpay_current_user", JSON.stringify(user));
+    localStorage.setItem(`trustpay_${user.role}_user`, JSON.stringify(user));
+  }
+}
+
+export function clearUserSession() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("trustpay_client_token");
+    localStorage.removeItem("trustpay_freelancer_token");
+    localStorage.removeItem("trustpay_current_user");
+    localStorage.removeItem("trustpay_client_user");
+    localStorage.removeItem("trustpay_freelancer_user");
   }
 }
 
 export async function loginDemoUser(userId: string, role: "client" | "freelancer"): Promise<string> {
+  const match = DEMO_USERS.find((u) => u.id === userId) || {
+    id: userId,
+    name: userId.includes("maya") ? "Maya Patel" : userId.includes("northwind") ? "Northwind Studio" : userId.includes("sofia") ? "Sofia Reyes" : "Arjun Kumar",
+    email: `${userId}@trustpay.test`,
+    role,
+  };
+
   const res = await fetch(`${API_BASE}/demo-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ user_id: userId, role }),
+    body: JSON.stringify({ user_id: match.id, role: match.role, name: match.name }),
   });
   if (!res.ok) throw new Error("Demo login failed");
   const data = await res.json();
-  setStoredToken(data.access_token);
+  setStoredToken(data.access_token, role);
+  setStoredUser({
+    id: data.user_id,
+    name: data.name,
+    email: match.email,
+    role: data.role as "client" | "freelancer",
+    title: match.title,
+  });
+  invalidateApiCache();
   return data.access_token;
+}
+
+export async function ensureDemoUser(userId: string, role: "client" | "freelancer"): Promise<string> {
+  const stored = getStoredUser(role);
+  const existing = getStoredToken(role);
+  if (existing && stored?.id === userId) return existing;
+  invalidateApiCache();
+  return loginDemoUser(userId, role);
+}
+
+// High-speed in-memory SWR cache for GET requests
+const apiCache = new Map<string, { data: any; timestamp: number }>();
+
+export function invalidateApiCache(prefix?: string) {
+  if (!prefix) {
+    apiCache.clear();
+  } else {
+    apiCache.forEach((_, key) => {
+      if (key.includes(prefix)) {
+        apiCache.delete(key);
+      }
+    });
+  }
 }
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -33,8 +127,45 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
   const finalPath = cleanPath.startsWith("/api/") ? cleanPath.slice(4) : cleanPath;
   const fullUrl = url.startsWith("http") ? url : `${API_BASE}${finalPath}`;
 
-  const token = getStoredToken();
-  const authHeaders: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+  let currentRole: "client" | "freelancer" | undefined;
+  if (typeof window !== "undefined") {
+    if (window.location.pathname.startsWith("/freelancer")) currentRole = "freelancer";
+    else if (window.location.pathname.startsWith("/client")) currentRole = "client";
+  }
+
+  const token = getStoredToken(currentRole);
+  const storedUser = getStoredUser(currentRole);
+  const authHeaders: Record<string, string> = {};
+  if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+  if (currentRole) authHeaders["X-User-Role"] = currentRole;
+  if (storedUser?.id) authHeaders["X-User-Id"] = storedUser.id;
+
+  const isGet = !options?.method || options.method.toUpperCase() === "GET";
+  const cacheKey = `${fullUrl}_${token || ""}_${storedUser?.id || ""}_${currentRole || ""}`;
+
+  // If cached and under 15 seconds old, return instantly (0ms)
+  if (isGet && apiCache.has(cacheKey)) {
+    const cached = apiCache.get(cacheKey)!;
+    if (Date.now() - cached.timestamp < 15000) {
+      // Background revalidate if older than 3 seconds
+      if (Date.now() - cached.timestamp > 3000) {
+        fetch(fullUrl, {
+          ...options,
+          headers: {
+            "Accept": "application/json",
+            ...authHeaders,
+            ...(options?.headers || {}),
+          },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((fresh) => {
+            if (fresh) apiCache.set(cacheKey, { data: fresh, timestamp: Date.now() });
+          })
+          .catch(() => {});
+      }
+      return cached.data as T;
+    }
+  }
 
   const res = await fetch(fullUrl, {
     ...options,
@@ -67,7 +198,16 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
     throw new Error(detail || `HTTP ${res.status}`);
   }
 
-  return res.json();
+  const data = await res.json();
+
+  if (isGet) {
+    apiCache.set(cacheKey, { data, timestamp: Date.now() });
+  } else {
+    // Invalidate cache on mutations (POST, PUT, DELETE)
+    invalidateApiCache();
+  }
+
+  return data as T;
 }
 
 export interface AcceptanceCriterion {
@@ -93,6 +233,11 @@ export interface SandboxEvidence {
   tests_total?: number;
   execution_time_ms?: number;
   success?: boolean;
+  executed?: boolean;
+  runner_mode?: string;
+  provider?: string;
+  needs_manual_review?: boolean;
+  message?: string;
 }
 
 export interface JudgeEvaluation {
@@ -137,6 +282,7 @@ export interface Milestone {
   due_date: string;
   status: string;
   captured_amount: number;
+  paid_amount?: number;
   paypal_capture_id?: string;
   resubmission_count: number;
   acceptance_criteria: AcceptanceCriterion[];
@@ -147,6 +293,7 @@ export interface Milestone {
 export interface Contract {
   id: string;
   job_id: string;
+  application_id?: string;
   total_amount: number;
   currency: string;
   deadline: string;
@@ -205,12 +352,16 @@ export interface Job {
 
 export interface SystemStats {
   total_jobs: number;
-  active_jobs: number;
-  completed_deals: number;
-  total_authorized_usd: number;
-  total_captured_usd: number;
-  verified_milestones_count: number;
-  live_paypal_connected: boolean;
+  active_jobs?: number;
+  active_contracts?: number;
+  completed_deals?: number;
+  completed_contracts?: number;
+  funds_held_escrow_usd?: number;
+  released_payouts_usd?: number;
+  total_authorized_usd?: number;
+  total_captured_usd?: number;
+  verified_milestones_count?: number;
+  live_paypal_connected?: boolean;
 }
 
 // API Helper Methods
@@ -226,6 +377,7 @@ export async function createJob(data: {
   title: string;
   description: string;
   max_budget: number;
+  public_budget_estimate?: string;
   currency?: string;
   deadline: string;
 }): Promise<Job> {
@@ -261,9 +413,18 @@ export async function authorizePayment(id: string, orderId?: string, allowSandbo
 }
 
 export async function submitMilestoneWork(jobId: string, milestoneId: string, formData: FormData): Promise<any> {
+  let token = getStoredToken("freelancer");
+  if (!token) {
+    token = await ensureDemoUser("freelancer_arjun", "freelancer");
+  }
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
   const fullUrl = `${API_BASE}/jobs/${jobId}/milestones/${milestoneId}/submit`;
   const res = await fetch(fullUrl, {
     method: "POST",
+    headers,
     body: formData,
   });
   if (!res.ok) {
@@ -319,7 +480,7 @@ export async function createApplication(jobId: string, brief: {
   min_price: number;
   preferred_price: number;
   time_needed_days: number;
-  skills: string[];
+  skills: string | string[];
   exclusions?: string;
   notes?: string;
   freelancer_name?: string;
@@ -346,12 +507,18 @@ export async function stepApplicationNegotiation(applicationId: string, runAll: 
 export async function decideApplication(
   applicationId: string,
   action: "accept" | "reject" | "counter",
-  counterMessage?: string
+  options?: { role?: "client" | "freelancer"; message?: string; counter_message?: string }
 ): Promise<any> {
+  const currentRole =
+    options?.role ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/freelancer")
+      ? "freelancer"
+      : "client");
+  const msg = options?.message || options?.counter_message;
   return fetchJson(`/applications/${applicationId}/decide`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, counter_message: counterMessage }),
+    body: JSON.stringify({ role: currentRole, action, message: msg }),
   });
 }
 
@@ -371,6 +538,46 @@ export async function cancelFundApplication(applicationId: string): Promise<any>
   return fetchJson(`/applications/${applicationId}/cancel-fund`, { method: "POST" });
 }
 
+export async function getOpportunities(): Promise<any[]> {
+  return fetchJson<any[]>("/opportunities");
+}
+
+export async function getOpportunity(jobId: string): Promise<any> {
+  return fetchJson<any>(`/opportunities/${jobId}`);
+}
+
+export async function getFreelancerApplications(): Promise<any[]> {
+  return fetchJson<any[]>("/freelancer/applications");
+}
+
+export async function getFreelancerContracts(): Promise<any[]> {
+  return fetchJson<any[]>("/freelancer/contracts");
+}
+
+export async function getFreelancerEarnings(): Promise<any[]> {
+  return fetchJson<any[]>("/freelancer/earnings");
+}
+
+export async function getClientPayments(): Promise<any[]> {
+  return fetchJson<any[]>("/client/payments");
+}
+
+export async function getClientStats(): Promise<any> {
+  return fetchJson<any>("/client/stats");
+}
+
+export async function getFreelancerStats(): Promise<any> {
+  return fetchJson<any>("/freelancer/stats");
+}
+
+export async function getContractTimeline(contractId: string): Promise<any[]> {
+  return fetchJson<any[]>(`/contracts/${contractId}/timeline`);
+}
+
+export async function reauthorizeContract(contractId: string): Promise<any> {
+  return fetchJson(`/contracts/${contractId}/reauthorize`, { method: "POST" });
+}
+
 export async function getStats(): Promise<SystemStats> {
   return fetchJson<SystemStats>("/stats");
 }
@@ -381,4 +588,28 @@ export async function seedDemo(): Promise<Job> {
 
 export async function resetDemo(): Promise<any> {
   return fetchJson("/demo/reset", { method: "POST" });
+}
+
+export async function closeJob(jobId: string): Promise<{ id: string; status: string; message: string }> {
+  return fetchJson<{ id: string; status: string; message: string }>(`/jobs/${jobId}/close`, {
+    method: "POST",
+  });
+}
+
+export async function closeApplication(appId: string): Promise<{ id: string; status: string; message: string }> {
+  return fetchJson<{ id: string; status: string; message: string }>(`/applications/${appId}/close`, {
+    method: "POST",
+  });
+}
+
+export async function reviseJobBudget(
+  jobId: string,
+  data: { new_max_budget: number; new_public_estimate?: string }
+): Promise<any> {
+  invalidateApiCache();
+  return fetchJson<any>(`/jobs/${jobId}/revise-budget`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 }

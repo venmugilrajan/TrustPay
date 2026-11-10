@@ -75,6 +75,7 @@ export default function PayPalButton({
             height: 42,
           },
           createOrder: async () => {
+            setError(null);
             const res = await createFundOrder(jobId);
             return res.order_id;
           },
@@ -126,7 +127,7 @@ export default function PayPalButton({
               PayPal Orders v2 Escrow Authorization
             </h4>
             <p className="text-xs text-content-secondary">
-              Holds <strong className="text-primary font-mono">${totalAmount.toFixed(2)} {currency}</strong> in escrow (intent: AUTHORIZE)
+              Holds <strong className="text-primary font-mono">${Number(totalAmount || 0).toFixed(2)} {currency}</strong> in escrow (intent: AUTHORIZE)
             </p>
           </div>
         </div>

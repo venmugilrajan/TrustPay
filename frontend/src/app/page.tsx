@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
@@ -14,567 +14,541 @@ import {
   Sparkles,
   Zap,
   Terminal,
-  HelpCircle,
-  ExternalLink,
   ChevronDown,
+  Layers,
+  Check,
+  Building2,
+  HelpCircle,
 } from "lucide-react";
-import Button from "@/components/ui/Button";
+import GlassButton from "@/components/glass/GlassButton";
+import GlassCard from "@/components/glass/GlassCard";
+import AuroraBackground from "@/components/glass/AuroraBackground";
+import { ThemeToggle } from "@/components/glass/GlassNav";
+import HowItWorksDrawer from "@/components/glass/HowItWorksDrawer";
+import AccountSwitcher from "@/components/ui/AccountSwitcher";
 
-export default function LandingPage() {
+// Isolated Lifecycle Simulation with Specular Sheen
+const HeroLifecycleSimulator = memo(function HeroLifecycleSimulator() {
   const shouldReduceMotion = useReducedMotion();
-  const [activeStoryStep, setActiveStoryStep] = useState(0); // 0: Negotiate, 1: Lock, 2: Verify, 3: Release
-  const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const [activeStoryStep, setActiveStoryStep] = useState(0);
 
-  // 10s Storyboard loop cycling every 2.5s per step
   useEffect(() => {
     if (shouldReduceMotion) return;
     const interval = setInterval(() => {
       setActiveStoryStep((prev) => (prev + 1) % 4);
-    }, 2800);
+    }, 3400);
     return () => clearInterval(interval);
   }, [shouldReduceMotion]);
 
-  const storySteps = [
+  return (
+    <div className="relative mx-auto w-full max-w-[620px] h-[500px] glass-strong p-6 sm:p-7 shadow-glass-strong flex flex-col justify-between overflow-hidden">
+      {/* Simulation Header */}
+      <div className="flex items-center justify-between border-b border-border pb-3.5 relative z-10">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-accent-emerald animate-pulse" />
+          <span className="text-xs font-bold uppercase tracking-wider text-content-primary">
+            Autonomous Deal Simulation
+          </span>
+        </div>
+        <span className="text-[11px] font-mono px-3 py-0.5 rounded-full glass border border-border text-content-secondary font-semibold">
+          Stage {activeStoryStep + 1} of 4
+        </span>
+      </div>
+
+      {/* Dynamic Simulation Body */}
+      <div className="relative flex-1 py-4 flex flex-col justify-center z-10">
+        <AnimatePresence mode="wait">
+          {activeStoryStep === 0 && (
+            <motion.div
+              key="step-0"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3.5"
+            >
+              <div className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
+                Step 1: Bilateral Agent Bargaining
+              </div>
+              <div className="p-3.5 rounded-2xl glass-subtle border border-border text-xs space-y-1">
+                <span className="text-[10px] font-bold text-accent uppercase block">Client AI Agent</span>
+                <p className="text-content-secondary">
+                  &ldquo;Project scope is clear. Proposing $1,400 across two payment stages with strict sandbox verification.&rdquo;
+                </p>
+              </div>
+              <div className="p-3.5 rounded-2xl glass-subtle border border-border text-xs space-y-1 ml-4 border-l-2 border-l-accent-emerald">
+                <span className="text-[10px] font-bold text-accent-emerald uppercase block">Freelancer AI Agent</span>
+                <p className="text-content-secondary">
+                  &ldquo;Factoring Docker container harness and unit tests, $1,250 achieves complete test coverage.&rdquo;
+                </p>
+              </div>
+              <div className="flex items-center justify-between text-xs px-4 py-2.5 rounded-2xl bg-accent-emerald/10 text-content-primary border border-accent-emerald/25">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                  Consensus Draft Locked
+                </span>
+                <span className="font-serif font-bold text-base text-accent-emerald">$1,250.00 USD</span>
+              </div>
+            </motion.div>
+          )}
+
+          {activeStoryStep === 1 && (
+            <motion.div
+              key="step-1"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <div className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
+                Step 2: PayPal Safe Hold Authorization
+              </div>
+              <div className="p-6 rounded-2xl glass-subtle border border-border text-center space-y-3.5">
+                <div className="w-14 h-14 rounded-full bg-accent-emerald/15 border border-accent-emerald/30 text-accent-emerald mx-auto flex items-center justify-center">
+                  <Lock className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="font-serif font-bold text-xl text-content-primary">$1,250.00 Authorized</div>
+                  <div className="text-xs text-content-secondary mt-1">
+                    Funds safely locked by PayPal. Freelancer begins building deliverables.
+                  </div>
+                </div>
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1 rounded-full bg-surface/80 border border-border text-content-muted">
+                  <span className="w-2 h-2 rounded-full bg-accent-emerald" />
+                  PayPal Orders v2 · Intent: AUTHORIZE
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeStoryStep === 2 && (
+            <motion.div
+              key="step-2"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3.5"
+            >
+              <div className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
+                Step 3: Sandbox Verification & Testing
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-950 text-slate-100 font-mono text-xs space-y-2 border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-[10px] border-b border-slate-800 pb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-accent-emerald" />
+                    docker run --network none sandbox:latest
+                  </span>
+                  <span className="text-accent-emerald">PASS (100%)</span>
+                </div>
+                <div className="text-[11px] space-y-1 text-slate-300">
+                  <p className="text-emerald-400">PASS: test_session_memory_redis: PASSED</p>
+                  <p className="text-emerald-400">PASS: test_rate_limiter_token_bucket: PASSED</p>
+                  <p className="text-emerald-400">PASS: test_injection_sanitization: PASSED</p>
+                </div>
+              </div>
+              <div className="p-3 rounded-2xl bg-accent-emerald/10 border border-accent-emerald/25 text-xs flex items-center justify-between text-content-primary">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                  Verification Score: 100 / 100
+                </span>
+                <span className="text-accent-emerald font-bold">Passed</span>
+              </div>
+            </motion.div>
+          )}
+
+          {activeStoryStep === 3 && (
+            <motion.div
+              key="step-3"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4 text-center"
+            >
+              <div className="text-[11px] font-bold uppercase tracking-wider text-content-muted">
+                Step 4: Automated PayPal Payment Release
+              </div>
+              <div className="p-6 rounded-2xl glass-subtle border border-border space-y-3.5">
+                <div className="w-14 h-14 rounded-full bg-accent-emerald/15 border border-accent-emerald/30 text-accent-emerald mx-auto flex items-center justify-center">
+                  <CheckCircle2 className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="font-serif font-bold text-2xl text-accent-emerald">
+                    $625.00 Payout Released
+                  </div>
+                  <div className="text-xs text-content-secondary mt-1">
+                    Funds immediately transferred to freelancer. Zero human delays.
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1 rounded-full bg-surface/80 border border-border text-content-muted">
+                  PayPal Capture ID: 3T111224HC540804F
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Simulation Progress Dots */}
+      <div className="pt-3 border-t border-border flex items-center justify-between relative z-10">
+        <span className="text-[11px] text-content-muted font-medium">Click to jump:</span>
+        <div className="flex gap-2">
+          {[0, 1, 2, 3].map((step) => (
+            <button
+              key={step}
+              onClick={() => setActiveStoryStep(step)}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                activeStoryStep === step ? "w-8 bg-accent" : "w-2 bg-border hover:bg-content-muted"
+              }`}
+              aria-label={`Jump to stage ${step + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+export default function LandingPage() {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqs = [
     {
-      title: "1. Autonomous Negotiation",
-      desc: "Client & Freelancer agents meet in private, trading offers within reservation limits until terms align.",
-      badge: "3-6 Rounds Consensus",
+      q: "How does safe hold work with PayPal?",
+      a: "When a contract is approved, the client authorizes payment via PayPal. Funds are held safely under PayPal's institutional custody — not deposited to TrustPay. When deliverables pass automated test checks, payment releases instantly to the freelancer.",
     },
     {
-      title: "2. Escrow Locked",
-      desc: "Client funds a PayPal Orders v2 AUTHORIZE hold. Money is locked securely until milestones are proven.",
-      badge: "Zero-Risk Custody",
+      q: "What is an autonomous bilateral negotiation?",
+      a: "Both client and freelancer provide private rate and timeline constraints. Two AI agents negotiate in real-time, proposing counter-offers until an optimal consensus is locked. Private budget caps are never revealed to the other party.",
     },
     {
-      title: "3. Code Verification",
-      desc: "Deliverables execute in isolated Docker harnesses. AI Judge tests code against concrete acceptance criteria.",
-      badge: "Passing Verdict",
+      q: "How does automated code checking prevent fraud?",
+      a: "Deliverables execute inside an isolated Docker sandbox with zero network access and strict CPU limits. Tests run independently against the agreed deliverables. Neither party can tamper with test results.",
     },
     {
-      title: "4. Automated Release",
-      desc: "Only on a verified passing score (>=70%), PayPal captures and releases funds instantly to the freelancer.",
-      badge: "Instant Payout",
+      q: "What happens if there is a dispute?",
+      a: "An independent AI Dispute Arbitrator evaluates raw git commits, test outputs, and communication history to issue a binding, fair split based on verified completion evidence.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-white text-content-primary flex flex-col justify-between selection:bg-accent-subtle selection:text-accent font-sans">
-      {/* Sticky frosted glass header */}
-      <header className="border-b border-border bg-white/90 backdrop-blur-md sticky top-0 z-40 transition-all">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-subtle">
-              <Shield className="w-4 h-4 text-emerald-400" />
-            </div>
-            <span className="font-serif font-bold text-xl text-content-primary tracking-tight">
-              TrustPay
-            </span>
-            <span className="hidden sm:inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full bg-surface-subtle text-content-secondary border border-border">
-              PayPal Orders v2
-            </span>
-          </Link>
+    <div className="min-h-screen bg-canvas text-content-primary flex flex-col relative">
+      <AuroraBackground />
 
-          <nav className="flex items-center gap-3">
-            <a href="#how-it-works" className="text-sm font-medium text-content-secondary hover:text-content-primary transition-colors px-3 py-1.5 hidden md:inline-block">
-              How It Works
-            </a>
-            <a href="#security" className="text-sm font-medium text-content-secondary hover:text-content-primary transition-colors px-3 py-1.5 hidden md:inline-block">
-              Verification
-            </a>
-            <a href="#faq" className="text-sm font-medium text-content-secondary hover:text-content-primary transition-colors px-3 py-1.5 hidden md:inline-block">
-              FAQ
-            </a>
-            <Link href="/demo">
-              <Button variant="outline" size="sm">
-                Sandbox Mode
-              </Button>
+      {/* Floating Glass Top Navigation */}
+      <header className="glass-nav sticky top-0 z-50">
+        <div className="max-w-wide mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-subtle group-hover:scale-105 transition-transform">
+                <Shield className="w-4 h-4" />
+              </div>
+              <span className="font-serif font-bold text-xl text-content-primary tracking-tight">
+                TrustPay
+              </span>
             </Link>
-          </nav>
+
+            <nav className="hidden md:flex items-center gap-1">
+              <a
+                href="#how-it-works"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-content-secondary hover:text-content-primary hover:bg-border/60 transition-colors"
+              >
+                How It Works
+              </a>
+              <a
+                href="#autonomous-negotiation"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-content-secondary hover:text-content-primary hover:bg-border/60 transition-colors"
+              >
+                AI Negotiation
+              </a>
+              <a
+                href="#automated-checking"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-content-secondary hover:text-content-primary hover:bg-border/60 transition-colors"
+              >
+                Verification
+              </a>
+              <Link
+                href="/demo"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-accent hover:bg-accent/10 transition-colors flex items-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Demo Hub</span>
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <HowItWorksDrawer />
+            <ThemeToggle />
+            <AccountSwitcher currentRole="client" />
+            <Link href="/client" className="hidden sm:inline-block">
+              <GlassButton variant="primary" size="sm">
+                Open App
+              </GlassButton>
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-border">
-        {/* Subtle background glow */}
-        <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl pointer-events-none -z-10" />
-        <div className="absolute top-1/3 left-10 w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl pointer-events-none -z-10" />
-
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            
-            {/* Left Column: Editorial Headline & Actions */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-subtle border border-emerald-200 text-xs font-semibold text-emerald-800">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Autonomous AI Escrow & Code Verification</span>
+      {/* Hero Section */}
+      <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-28 content-layer">
+        <div className="max-w-wide mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Left Column: Headline & Value Proposition */}
+            <div className="lg:col-span-6 space-y-6 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass border border-border text-xs font-semibold text-content-primary shadow-subtle">
+                <span className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse" />
+                <span>Autonomous AI Escrow & Milestone Verification</span>
               </div>
 
-              <h1 className="text-4xl sm:text-6xl font-serif font-bold text-content-primary tracking-tight leading-[1.08]">
-                Get paid for work that’s <span className="text-emerald-700 italic">proven</span>.
+              <h1 className="text-4xl sm:text-6xl font-serif font-bold text-content-primary tracking-tight leading-[1.1]">
+                Get paid for work that&rsquo;s proven.
               </h1>
 
-              <p className="text-base sm:text-lg text-content-secondary leading-relaxed max-w-xl">
-                Autonomous agents negotiate scope and price within private limits. PayPal locks client funds in escrow, and an AI Judge tests deliverables before releasing a single dollar.
+              <p className="text-base sm:text-lg text-content-secondary max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                Autonomous AI agents negotiate terms, PayPal safely holds funds, and an automated code test runner releases payouts upon 100% verified delivery.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-                <Link href="/client">
-                  <Button size="lg" className="w-full sm:w-auto shadow-elevated gap-2">
-                    <UserCheck className="w-4 h-4 text-emerald-300" />
-                    <span>I’m hiring (Client Portal)</span>
-                    <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
+                <Link href="/client" className="w-full sm:w-auto">
+                  <GlassButton
+                    variant="primary"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    icon={<ArrowRight className="w-4 h-4 ml-1 order-last" />}
+                  >
+                    I&rsquo;m Hiring (Client)
+                  </GlassButton>
                 </Link>
-
-                <Link href="/freelancer">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
-                    <Code2 className="w-4 h-4 text-content-secondary" />
-                    <span>I’m a freelancer</span>
-                  </Button>
+                <Link href="/freelancer" className="w-full sm:w-auto">
+                  <GlassButton
+                    variant="glass"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                    icon={<Code2 className="w-4 h-4" />}
+                  >
+                    I&rsquo;m a Freelancer
+                  </GlassButton>
                 </Link>
               </div>
 
-              {/* Trust Badges Row */}
-              <div className="pt-6 border-t border-border grid grid-cols-3 gap-4 text-xs text-content-secondary">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-primary">
-                    <Lock className="w-3 h-3 text-emerald-600" />
-                  </div>
-                  <span>PayPal Escrow Hold</span>
+              {/* Trust Indicators */}
+              <div className="pt-4 flex items-center justify-center lg:justify-start gap-6 text-xs text-content-muted">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                  <span>PayPal Custody</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-primary">
-                    <Terminal className="w-3 h-3 text-primary" />
-                  </div>
-                  <span>Sandboxed Code Tests</span>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                  <span>Sandbox Isolation</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-surface-subtle border border-border flex items-center justify-center text-primary">
-                    <Scale className="w-3 h-3 text-amber-600" />
-                  </div>
-                  <span>Dispute Arbitration</span>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                  <span>Zero Human Delays</span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Layered Floating UI Storyboard */}
-            <div className="lg:col-span-5 relative">
-              <div className="relative mx-auto w-full max-w-[440px] h-[480px] bg-surface-subtle rounded-2xl border border-border p-6 shadow-float flex flex-col justify-between overflow-hidden">
-                
-                {/* Story header bar */}
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="text-xs font-semibold text-content-primary">Lifecycle Simulation</span>
-                  </div>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white border border-border text-content-muted">
-                    Round {activeStoryStep + 1} / 4
-                  </span>
-                </div>
-
-                {/* Animated Story Stages */}
-                <div className="relative flex-1 py-4 flex flex-col justify-center">
-                  <AnimatePresence mode="wait">
-                    {activeStoryStep === 0 && (
-                      <motion.div
-                        key="step-0"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.4 }}
-                        className="space-y-3"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-wider text-content-muted">
-                          Step 1: Autonomous Agent Negotiation
-                        </div>
-                        {/* Bubble 1: Client */}
-                        <div className="p-3 rounded-xl bg-white border border-border shadow-subtle text-xs space-y-1">
-                          <span className="text-[10px] font-semibold text-primary uppercase">Client Agent</span>
-                          <p className="text-content-secondary">"Deliverables look solid. Can we target $1,400 with 2 milestones?"</p>
-                        </div>
-                        {/* Bubble 2: Freelancer */}
-                        <div className="p-3 rounded-xl bg-white border border-border shadow-subtle text-xs space-y-1 ml-4">
-                          <span className="text-[10px] font-semibold text-emerald-700 uppercase">Freelancer Agent</span>
-                          <p className="text-content-secondary">"With automated test suites and Redis caching, $1,250 is optimal."</p>
-                        </div>
-                        {/* Status banner */}
-                        <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <span className="font-medium">Consensus Reached</span>
-                          <span className="font-serif font-bold text-sm">$1,250.00 USD</span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {activeStoryStep === 1 && (
-                      <motion.div
-                        key="step-1"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.4 }}
-                        className="space-y-4"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-wider text-content-muted">
-                          Step 2: PayPal Escrow Lock
-                        </div>
-                        <div className="p-5 rounded-xl bg-white border border-border text-center space-y-3 shadow-subtle">
-                          <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 mx-auto flex items-center justify-center">
-                            <Lock className="w-6 h-6 animate-pulse" />
-                          </div>
-                          <div>
-                            <span className="text-xs text-content-muted block">PayPal Orders v2 AUTHORIZE</span>
-                            <span className="font-serif font-bold text-2xl text-content-primary">$1,250.00 USD</span>
-                          </div>
-                          <span className="inline-block text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            Locked in Custody • Safe from chargebacks
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {activeStoryStep === 2 && (
-                      <motion.div
-                        key="step-2"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.4 }}
-                        className="space-y-3"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-wider text-content-muted">
-                          Step 3: Isolated AI Verification
-                        </div>
-                        <div className="p-3.5 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] space-y-1.5 shadow-subtle">
-                          <div className="text-slate-400 text-[10px] pb-1 border-b border-slate-800">
-                            sandbox-exec: python runner.py --no-network
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>test_auth_signature: PASSED</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>test_concurrency_race: PASSED</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>prompt_injection_guard: ZERO_LEAKS</span>
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white border border-border flex items-center justify-between text-xs">
-                          <div>
-                            <span className="font-semibold block text-content-primary">Judge Verdict: Approved</span>
-                            <span className="text-[11px] text-content-muted">Objective criteria met (100%)</span>
-                          </div>
-                          <div className="w-9 h-9 rounded-full bg-emerald-500 text-white font-serif font-bold flex items-center justify-center text-sm">
-                            96%
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {activeStoryStep === 3 && (
-                      <motion.div
-                        key="step-3"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.4 }}
-                        className="space-y-4"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-wider text-content-muted">
-                          Step 4: PayPal Payout Captured
-                        </div>
-                        <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-3">
-                          <div className="w-12 h-12 rounded-full bg-emerald-600 text-white mx-auto flex items-center justify-center shadow-subtle">
-                            <CheckCircle2 className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <span className="text-xs text-emerald-700 block font-medium">Funds Released to Freelancer</span>
-                            <span className="font-serif font-bold text-2xl text-emerald-950">$625.00 USD</span>
-                          </div>
-                          <span className="inline-block text-[11px] font-mono text-emerald-700 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                            Capture ID: PAYID-M1-VERIFIED
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Progress Indicators */}
-                <div className="grid grid-cols-4 gap-2 pt-3 border-t border-border">
-                  {[0, 1, 2, 3].map((step) => (
-                    <button
-                      key={step}
-                      onClick={() => setActiveStoryStep(step)}
-                      className={`h-1.5 rounded-full transition-all ${
-                        activeStoryStep === step ? "bg-emerald-600" : "bg-slate-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
+            {/* Right Column: Hero Lifecycle Simulator */}
+            <div className="lg:col-span-6">
+              <HeroLifecycleSimulator />
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* SECTION 2: HOW IT WORKS (PINNED SCROLL TIMELINE) */}
-      <section id="how-it-works" className="py-20 bg-surface-subtle border-b border-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 space-y-12">
-          <div className="max-w-2xl">
-            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider block mb-2">
-              End-to-End Workflow
+      {/* SECTION 1: HOW IT WORKS (4 guided stages) */}
+      <section id="how-it-works" className="py-20 border-t border-border content-layer">
+        <div className="max-w-wide mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+              Streamlined Flow
             </span>
             <h2 className="text-3xl sm:text-4xl font-serif font-bold text-content-primary">
-              Engineered for zero trust and complete clarity.
+              Four steps. Zero friction.
             </h2>
-            <p className="text-content-secondary text-sm sm:text-base mt-2">
-              Traditional freelancing relies on blind trust. TrustPay pairs autonomous multi-agent bargaining with cryptographic PayPal holds and automated verification.
+            <p className="text-sm text-content-secondary leading-relaxed">
+              Every freelance agreement executes automatically from contract negotiation to final release.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {storySteps.map((step, idx) => (
-              <div
-                key={idx}
-                className="p-6 rounded-2xl bg-white border border-border space-y-4 hover:shadow-elevated transition-all flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-                  <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-xs font-serif font-bold text-primary">
-                    0{idx + 1}
-                  </div>
-                  <h3 className="font-serif font-bold text-base text-content-primary">
-                    {step.title.split(". ")[1]}
-                  </h3>
-                  <p className="text-xs text-content-secondary leading-relaxed">
-                    {step.desc}
-                  </p>
-                </div>
-                <div>
-                  <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-subtle text-content-primary border border-border">
-                    {step.badge}
-                  </span>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <GlassCard variant="default" className="space-y-4">
+              <div className="w-10 h-10 rounded-2xl bg-accent/15 text-accent flex items-center justify-center font-bold text-base">
+                1
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 3: TWO AGENTS, ONE FAIR PRICE */}
-      <section id="security" className="py-20 bg-white border-b border-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            <div className="lg:col-span-6 space-y-6">
-              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">
-                Bilateral Bargaining
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-serif font-bold text-content-primary leading-tight">
-                Two autonomous agents. One mathematically fair price.
-              </h2>
-              <p className="text-sm sm:text-base text-content-secondary leading-relaxed">
-                Both parties set private parameters. The client sets a private maximum budget ceiling; the freelancer sets a private minimum floor. Agents negotiate 3 to 6 rounds without ever leaking their limits.
+              <h3 className="font-serif font-bold text-lg text-content-primary">
+                Bilateral Negotiation
+              </h3>
+              <p className="text-xs text-content-secondary leading-relaxed">
+                Autonomous AI agents negotiate price, deliverables, and payment stages in seconds, keeping private budget limits secret.
               </p>
+            </GlassCard>
 
-              <div className="space-y-3 text-xs">
-                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-surface-subtle border border-border">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <span className="font-semibold text-content-primary block">Private Reservation Protection</span>
-                    <span className="text-content-secondary">Limits are never serialized over the wire or passed to opposing prompts.</span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3.5 rounded-xl bg-surface-subtle border border-border">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <span className="font-semibold text-content-primary block">Human Oversight Step</span>
-                    <span className="text-content-secondary">Both parties inspect the final contract and can Accept, Reject, or Counter (max 2).</span>
-                  </div>
-                </div>
+            <GlassCard variant="default" className="space-y-4">
+              <div className="w-10 h-10 rounded-2xl bg-accent-emerald/15 text-accent-emerald flex items-center justify-center font-bold text-base">
+                2
               </div>
-            </div>
+              <h3 className="font-serif font-bold text-lg text-content-primary">
+                PayPal Safe Hold
+              </h3>
+              <p className="text-xs text-content-secondary leading-relaxed">
+                Client authorizes payment into PayPal safe hold. Funds remain secure in institutional custody until deliverables pass tests.
+              </p>
+            </GlassCard>
 
-            <div className="lg:col-span-6">
-              <div className="p-6 rounded-2xl bg-surface-subtle border border-border space-y-5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-content-primary">Price Convergence Trajectory</span>
-                  <span className="text-[11px] text-emerald-700 font-mono font-medium">Over 4 Rounds</span>
-                </div>
-
-                {/* Graph mockup */}
-                <div className="space-y-3">
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-[11px] text-content-muted">
-                      <span>Round 1: Initial Quotes</span>
-                      <span>$1,400 (Client) / $1,050 (Worker)</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden flex">
-                      <div className="bg-primary w-[35%]" />
-                      <div className="bg-emerald-600 w-[20%]" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-[11px] text-content-muted">
-                      <span>Round 2: Scope & Milestone Trade</span>
-                      <span>$1,300 (Client) / $1,150 (Worker)</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden flex">
-                      <div className="bg-primary w-[45%]" />
-                      <div className="bg-emerald-600 w-[15%]" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between text-[11px] text-content-muted">
-                      <span>Round 3: Final Consensus</span>
-                      <span className="font-bold text-emerald-700">$1,250.00 USD (Agreed)</span>
-                    </div>
-                    <div className="h-2 w-full bg-emerald-600 rounded-full" />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-white rounded-xl border border-border text-xs flex items-center justify-between">
-                  <span className="text-content-secondary">Agreed Escrow Value:</span>
-                  <span className="font-serif font-bold text-base text-content-primary">$1,250.00 USD</span>
-                </div>
+            <GlassCard variant="default" className="space-y-4">
+              <div className="w-10 h-10 rounded-2xl bg-warning/15 text-warning flex items-center justify-center font-bold text-base">
+                3
               </div>
-            </div>
+              <h3 className="font-serif font-bold text-lg text-content-primary">
+                Automated Checking
+              </h3>
+              <p className="text-xs text-content-secondary leading-relaxed">
+                Code deliverables run inside an isolated Docker sandbox against agreed pytest suites. No human bias, no subjective delays.
+              </p>
+            </GlassCard>
 
+            <GlassCard variant="default" className="space-y-4">
+              <div className="w-10 h-10 rounded-2xl bg-primary/15 text-primary flex items-center justify-center font-bold text-base">
+                4
+              </div>
+              <h3 className="font-serif font-bold text-lg text-content-primary">
+                Instant Release
+              </h3>
+              <p className="text-xs text-content-secondary leading-relaxed">
+                Upon 100% test pass, PayPal capture executes automatically. Payouts arrive in the freelancer&rsquo;s account without waiting.
+              </p>
+            </GlassCard>
           </div>
         </div>
       </section>
 
-      {/* SECTION 4: BUILT FOR BOTH SIDES */}
-      <section className="py-20 bg-surface-subtle border-b border-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 space-y-12">
-          <div className="text-center max-w-xl mx-auto space-y-3">
-            <h2 className="text-3xl font-serif font-bold text-content-primary">
-              Two distinct, role-tailored portals.
+      {/* SECTION 2: DEDICATED PORTALS */}
+      <section className="py-20 border-t border-border content-layer">
+        <div className="max-w-wide mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              Role Tailored Experience
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-serif font-bold text-content-primary">
+              Built specifically for both sides.
             </h2>
-            <p className="text-content-secondary text-sm">
-              Each side operates in its own dedicated space with complete data isolation and purpose-built tools.
+            <p className="text-sm text-content-secondary leading-relaxed">
+              Dedicated interfaces with role-tailored wording, private credentials, and isolated data boundaries.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Client Portal Card */}
-            <div className="p-8 rounded-2xl bg-white border border-border shadow-soft hover:shadow-elevated transition-all space-y-6 flex flex-col justify-between">
+            <div className="content-solid p-8 sm:p-10 shadow-soft flex flex-col justify-between space-y-6">
               <div className="space-y-4">
-                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center">
-                  <UserCheck className="w-5 h-5 text-emerald-400" />
+                <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center">
+                  <Building2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-serif font-bold text-content-primary">
-                  I’m Hiring (Client Portal)
+                <h3 className="text-2xl font-serif font-bold text-content-primary">
+                  I&rsquo;m Hiring (Client Portal)
                 </h3>
-                <p className="text-xs text-content-secondary leading-relaxed">
-                  Post freelance projects with private max budgets. Review candidates, watch AI agents negotiate scope, authorize PayPal holds with one click, and inspect automated milestone test reports.
+                <p className="text-sm text-content-secondary leading-relaxed">
+                  Post freelance projects with confidential budget caps. Review proposals, monitor autonomous negotiations, authorize PayPal holds with one click, and review verified code deliverables.
                 </p>
                 <ul className="text-xs text-content-secondary space-y-2 pt-2">
-                  <li className="flex items-center gap-2">✓ 3-Step project setup wizard</li>
-                  <li className="flex items-center gap-2">✓ Multi-applicant negotiation threads</li>
-                  <li className="flex items-center gap-2">✓ PayPal Orders v2 escrow holding</li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>3-Step guided project creation wizard</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>Multi-turn autonomous agent bargaining</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>PayPal Orders v2 institutional safe hold</span>
+                  </li>
                 </ul>
               </div>
 
               <Link href="/client">
-                <Button size="md" className="w-full">
+                <GlassButton variant="primary" size="lg" className="w-full">
                   <span>Enter Client Portal</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </GlassButton>
               </Link>
             </div>
 
             {/* Freelancer Portal Card */}
-            <div className="p-8 rounded-2xl bg-white border border-border shadow-soft hover:shadow-elevated transition-all space-y-6 flex flex-col justify-between">
+            <div className="content-solid p-8 sm:p-10 shadow-soft flex flex-col justify-between space-y-6">
               <div className="space-y-4">
-                <div className="w-10 h-10 rounded-xl bg-surface-subtle text-primary border border-border flex items-center justify-center">
-                  <Code2 className="w-5 h-5 text-emerald-700" />
+                <div className="w-12 h-12 rounded-2xl bg-accent-emerald/15 text-accent-emerald flex items-center justify-center">
+                  <Code2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-serif font-bold text-content-primary">
-                  I’m a Freelancer
+                <h3 className="text-2xl font-serif font-bold text-content-primary">
+                  I&rsquo;m a Freelancer
                 </h3>
-                <p className="text-xs text-content-secondary leading-relaxed">
-                  Browse opportunities with guaranteed escrow budgets. Set your private rate floor and technical brief, upload deliverables to the automated verification sandbox, and receive instant payouts.
+                <p className="text-sm text-content-secondary leading-relaxed">
+                  Browse opportunities with guaranteed PayPal escrow budgets. Define your private rate floor, submit deliverables to the Docker verification sandbox, and receive guaranteed automated payouts.
                 </p>
                 <ul className="text-xs text-content-secondary space-y-2 pt-2">
-                  <li className="flex items-center gap-2">✓ Agent-backed rate advocacy</li>
-                  <li className="flex items-center gap-2">✓ Drag & drop deliverable dropzone</li>
-                  <li className="flex items-center gap-2">✓ Guaranteed payouts on passing checks</li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>Agent-backed rate negotiation advocacy</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>Isolated sandbox test harness execution</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-accent-emerald" />
+                    <span>Guaranteed payouts on 100% passing tests</span>
+                  </li>
                 </ul>
               </div>
 
               <Link href="/freelancer">
-                <Button variant="outline" size="md" className="w-full">
+                <GlassButton variant="secondary" size="lg" className="w-full">
                   <span>Enter Freelancer Portal</span>
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </GlassButton>
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SECTION 5: FAQ ACCORDION */}
-      <section id="faq" className="py-20 bg-white border-b border-border">
-        <div className="max-w-[800px] mx-auto px-4 sm:px-6 space-y-10">
+      {/* SECTION 3: FAQ */}
+      <section className="py-20 border-t border-border content-layer">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-serif font-bold text-content-primary">
-              Frequently Answered Questions
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-content-primary">
+              Frequently Asked Questions
             </h2>
-            <p className="text-content-secondary text-sm">
-              Clear, transparent details about our PayPal integration and AI verification pipeline.
+            <p className="text-xs text-content-secondary">
+              Everything you need to know about autonomous safe hold and automated checking.
             </p>
           </div>
 
           <div className="space-y-3">
-            {[
-              {
-                q: "How does PayPal escrow work in TrustPay?",
-                a: "TrustPay uses PayPal Orders v2 with intent=AUTHORIZE. Funds are verified and held by PayPal up front, but not transferred until the AI Judge confirms the deliverables meet acceptance criteria.",
-              },
-              {
-                q: "Are the client's budget and freelancer's minimum price revealed?",
-                a: "Never. The client's max budget and freelancer's min floor are strictly private reservation limits. Agents negotiate within these bounds, and regex leak scanners strip or regenerate any response mentioning them.",
-              },
-              {
-                q: "What happens if a deliverable fails verification?",
-                a: "The freelancer receives a detailed feedback breakdown per criterion and can fix & resubmit. If a disagreement persists, either party can file a dispute for AI arbitration or human review.",
-              },
-              {
-                q: "Is this a live demo or simulated sandbox?",
-                a: "Both! TrustPay supports live PayPal sandbox orders and live Groq LLM inference, with deterministic fallbacks when offline.",
-              },
-            ].map((faq, idx) => (
+            {faqs.map((faq, idx) => (
               <div
                 key={idx}
-                className="border border-border rounded-xl bg-surface-subtle overflow-hidden"
+                className="content-solid p-5 cursor-pointer transition-all hover:border-accent/40"
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
               >
-                <button
-                  onClick={() => setFaqOpen(faqOpen === idx ? null : idx)}
-                  className="w-full p-4 text-left flex items-center justify-between text-sm font-semibold text-content-primary hover:bg-slate-100 transition-colors"
-                >
+                <div className="flex items-center justify-between font-semibold text-sm text-content-primary">
                   <span>{faq.q}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-content-secondary transition-transform ${
-                      faqOpen === idx ? "rotate-180" : ""
+                    className={`w-4 h-4 text-content-muted transition-transform duration-200 ${
+                      openFaq === idx ? "rotate-180 text-accent" : ""
                     }`}
                   />
-                </button>
-                {faqOpen === idx && (
-                  <div className="p-4 pt-1 text-xs text-content-secondary border-t border-border bg-white leading-relaxed">
+                </div>
+                {openFaq === idx && (
+                  <p className="text-xs text-content-secondary mt-3 pt-3 border-t border-border leading-relaxed">
                     {faq.a}
-                  </div>
+                  </p>
                 )}
               </div>
             ))}
@@ -582,32 +556,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-white py-12 border-t border-border">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-content-secondary">
+      {/* Footer */}
+      <footer className="border-t border-border py-10 glass-subtle text-xs text-content-muted content-layer">
+        <div className="max-w-wide mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-white">
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="w-5 h-5 rounded-md bg-primary text-white flex items-center justify-center font-bold text-xs">
+              T
             </div>
-            <span className="font-serif font-bold text-content-primary text-sm">TrustPay</span>
-            <span className="text-content-muted">• PayPal AI Escrow Architecture</span>
+            <span className="font-semibold text-content-primary">TrustPay</span>
+            <span>· Autonomous AI Escrow with PayPal Authorizations</span>
           </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/client" className="hover:text-content-primary transition-colors">
-              Client Portal
-            </Link>
-            <Link href="/freelancer" className="hover:text-content-primary transition-colors">
-              Freelancer Portal
-            </Link>
-            <Link href="/demo" className="hover:text-content-primary transition-colors">
+          <div className="flex items-center gap-4">
+            <Link href="/demo" className="text-accent hover:underline font-semibold">
               Demo Hub
             </Link>
+            <Link href="/client" className="hover:text-content-primary">
+              Client Portal
+            </Link>
+            <Link href="/freelancer" className="hover:text-content-primary">
+              Freelancer Portal
+            </Link>
+            <span>PayPal Sandbox Active</span>
           </div>
-
-          <span className="text-content-muted">
-            PayPal Sandbox & AI Testing Harness
-          </span>
         </div>
       </footer>
     </div>

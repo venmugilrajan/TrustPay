@@ -2,55 +2,450 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   DESIGN TOKENS — Light (default) & Dark ([data-theme="dark"])
+   ============================================================ */
 :root {
-  --bg-canvas: #FFFFFF;
+  /* Canvas & surfaces */
+  --bg-canvas: #F4F7FB;
   --bg-surface: #FFFFFF;
-  --bg-subtle: #F7F8FA;
-  --border-subtle: #E8EAEE;
+  --bg-subtle: #F1F5FA;
+
+  /* Borders */
+  --border-subtle: #E2E8F0;
   --border-strong: #CBD5E1;
+
+  /* Text */
   --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #94A3B8;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+
+  /* Brand */
   --primary-base: #0B1F3A;
   --primary-hover: #12305A;
   --text-on-primary: #FFFFFF;
-  --accent-emerald: #0E9F6E;
-  --accent-gold: #C9A24B;
+
+  /* Accents - tuned for WCAG AA 4.5:1+ against light/glass backgrounds */
+  --accent-blue: #1D4ED8;
+  --accent-blue-hover: #1E40AF;
+  --accent-emerald: #047857;
+  --accent-gold: #92400E;
+  --accent-danger: #B91C1C;
+
+  /* Glass fills */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.70);
+  --glass-border-bottom: rgba(255, 255, 255, 0.20);
+  --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.10), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --glass-shadow-strong: 0 16px 48px rgba(15, 23, 42, 0.14), 0 4px 16px rgba(15, 23, 42, 0.08);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.60);
+
+  /* Aurora blob colors */
+  --aurora-1: #BFD9FF;
+  --aurora-2: #BFEBDD;
+  --aurora-3: #D9D0FF;
+  --aurora-4: #FFE2C7;
+}
+
+[data-theme="dark"] {
+  --bg-canvas: #0A0F1C;
+  --bg-surface: #111827;
+  --bg-subtle: #0F172A;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #A0ABBA;
+
+  --primary-base: #E8EEFF;
+  --primary-hover: #C7D4FF;
+  --text-on-primary: #0B1F3A;
+
+  --accent-blue: #6EA8FF;
+  --accent-blue-hover: #93BFFF;
+  --accent-emerald: #34D399;
+  --accent-gold: #F4C25B;
+  --accent-danger: #FF7A7A;
+
+  --glass-bg: rgba(28, 32, 44, 0.45);
+  --glass-bg-strong: rgba(20, 25, 40, 0.65);
+  --glass-bg-subtle: rgba(28, 32, 44, 0.28);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border-bottom: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.30);
+  --glass-shadow-strong: 0 16px 48px rgba(0, 0, 0, 0.60), 0 4px 16px rgba(0, 0, 0, 0.40);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+
+  --aurora-1: #2A3A8F;
+  --aurora-2: #0F6E69;
+  --aurora-3: #5B3FA6;
+  --aurora-4: #1a2050;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Accessible focus ring */
+/* Focus ring */
 *:focus-visible {
-  outline: 2px solid #0B1F3A;
+  outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
-}
-
-/* Crisp fintech scrollbar */
-::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
-}
-::-webkit-scrollbar-track {
-  background: #F7F8FA;
-}
-::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: var(--bg-subtle); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+a { color: inherit; text-decoration: none; }
+
+/* ============================================================
+   AURORA BACKGROUND (pure CSS animated blobs)
+   ============================================================ */
+.aurora-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-/* Base link styling */
-a {
-  color: inherit;
-  text-decoration: none;
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.6;
+  will-change: transform;
+}
+
+[data-theme="dark"] .aurora-blob {
+  opacity: 0.35;
+}
+
+.aurora-blob-1 {
+  width: 55vw;
+  height: 55vw;
+  top: -20%;
+  left: -15%;
+  background: var(--aurora-1);
+  animation: aurora-drift-1 45s ease-in-out infinite alternate;
+}
+
+.aurora-blob-2 {
+  width: 45vw;
+  height: 45vw;
+  top: 30%;
+  right: -10%;
+  background: var(--aurora-2);
+  animation: aurora-drift-2 55s ease-in-out infinite alternate;
+}
+
+.aurora-blob-3 {
+  width: 40vw;
+  height: 40vw;
+  bottom: -15%;
+  left: 20%;
+  background: var(--aurora-3);
+  animation: aurora-drift-3 50s ease-in-out infinite alternate;
+}
+
+.aurora-blob-4 {
+  width: 35vw;
+  height: 35vw;
+  top: 50%;
+  left: 50%;
+  background: var(--aurora-4);
+  animation: aurora-drift-4 60s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift-1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(5vw, 3vh) scale(1.08); }
+  66%  { transform: translate(-3vw, 6vh) scale(0.95); }
+  100% { transform: translate(4vw, -4vh) scale(1.05); }
+}
+@keyframes aurora-drift-2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-6vw, 4vh) scale(1.1); }
+  66%  { transform: translate(3vw, -3vh) scale(0.92); }
+  100% { transform: translate(-4vw, 5vh) scale(1.07); }
+}
+@keyframes aurora-drift-3 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(4vw, -5vh) scale(1.05); }
+  66%  { transform: translate(-5vw, 2vh) scale(1.12); }
+  100% { transform: translate(3vw, 4vh) scale(0.96); }
+}
+@keyframes aurora-drift-4 {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  50%  { transform: translate(-50%, -50%) scale(1.15) rotate(20deg); }
+  100% { transform: translate(-50%, -50%) scale(0.9) rotate(-10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none !important; }
+}
+
+/* ============================================================
+   GLASS UTILITIES
+   ============================================================ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), var(--glass-inset);
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(34px) saturate(200%);
+  -webkit-backdrop-filter: blur(34px) saturate(200%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong), var(--glass-inset);
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-subtle {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid var(--glass-border-bottom);
+  box-shadow: var(--glass-shadow);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-nav {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 0 var(--glass-border), 0 4px 24px rgba(15, 23, 42, 0.07);
+}
+
+/* Sheen overlay for glass surfaces */
+.glass::before,
+.glass-strong::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+[data-theme="dark"] .glass::before,
+[data-theme="dark"] .glass-strong::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    transparent 50%
+  );
+}
+
+/* Fallback for no backdrop-filter support */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass { background: rgba(248, 250, 252, 0.95); border-color: var(--border-subtle); }
+  .glass-strong { background: rgba(255, 255, 255, 0.98); border-color: var(--border-subtle); }
+  .glass-subtle { background: rgba(248, 250, 252, 0.90); border-color: var(--border-subtle); }
+  .glass-nav { background: rgba(255, 255, 255, 0.98); border-color: var(--border-subtle); }
+  [data-theme="dark"] .glass { background: rgba(17, 24, 39, 0.95); }
+  [data-theme="dark"] .glass-strong { background: rgba(10, 15, 28, 0.98); }
+  [data-theme="dark"] .glass-subtle { background: rgba(17, 24, 39, 0.90); }
+  [data-theme="dark"] .glass-nav { background: rgba(10, 15, 28, 0.98); }
+}
+
+/* Reduced transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: var(--bg-surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-strong { background: var(--bg-surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-subtle { background: var(--bg-subtle); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .glass-nav { background: var(--bg-surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* ============================================================
+   GLASS BUTTON
+   ============================================================ */
+.glass-button {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), var(--glass-inset);
+  border-radius: 100px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+.glass-button:hover {
+  background: var(--glass-bg-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--glass-shadow-strong), var(--glass-inset);
+}
+
+/* ============================================================
+   CONTENT LAYER (above aurora)
+   ============================================================ */
+.content-layer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   TYPOGRAPHY HELPERS
+   ============================================================ */
+.font-serif { font-family: var(--font-fraunces), Georgia, serif; }
+.font-mono  { font-family: var(--font-jetbrains), "Courier New", monospace; }
+
+.text-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.text-money {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ============================================================
+   PROGRESS TRACKER
+   ============================================================ */
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.progress-step-line {
+  height: 2px;
+  flex: 1;
+  background: var(--border-subtle);
+  transition: background 0.3s ease;
+}
+.progress-step-line.active {
+  background: var(--accent-emerald);
+}
+
+/* ============================================================
+   WHAT-TO-DO-NOW CARD
+   ============================================================ */
+.what-to-do-now {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(14, 159, 110, 0.06));
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-radius: 20px;
+  padding: 20px 24px;
+}
+[data-theme="dark"] .what-to-do-now {
+  background: linear-gradient(135deg, rgba(110, 168, 255, 0.10), rgba(52, 211, 153, 0.06));
+  border-color: rgba(110, 168, 255, 0.18);
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease forwards;
+}
+
+/* ============================================================
+   THEME TOGGLE TRANSITION
+   ============================================================ */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s ease, color 0.3s ease,
+              border-color 0.3s ease, fill 0.3s ease !important;
+}
+
+/* ============================================================
+   SOLID CONTENT AREAS (no glass — legibility first)
+   ============================================================ */
+.content-solid {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+}
+
+/* ============================================================
+   TOAST PILL
+   ============================================================ */
+.toast-glass {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong);
+  border-radius: 100px;
+}
+
+/* ============================================================
+   NAV ACTIVE PILL
+   ============================================================ */
+.nav-pill-active {
+  background: var(--text-primary);
+  color: var(--bg-canvas);
+  border-radius: 100px;
+  font-weight: 600;
+}
+[data-theme="dark"] .nav-pill-active {
+  background: var(--text-primary);
+  color: var(--bg-canvas);
+}
+
+/* ============================================================
+   SKELETON (dark-aware)
+   ============================================================ */
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--border-subtle) 25%, var(--bg-subtle) 50%, var(--border-subtle) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

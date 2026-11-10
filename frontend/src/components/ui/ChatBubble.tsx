@@ -26,11 +26,11 @@ export default function ChatBubble({
     <div className={`flex flex-col ${isClient ? "items-start" : "items-end"} w-full space-y-1`}>
       <div className="flex items-center gap-2 text-xs text-content-muted px-1">
         <span className="font-semibold text-content-secondary">{agentName}</span>
-        <span>• Round {roundNumber} of 6</span>
+        <span>· Round {roundNumber} of 6</span>
         {proposedPrice != null && (
           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-surface-subtle text-content-primary border border-border-subtle font-medium text-[11px]">
             <DollarSign className="w-3 h-3 text-primary" />
-            ${proposedPrice.toFixed(2)} USD
+            ${Number(proposedPrice || 0).toFixed(2)} USD
           </span>
         )}
         {agreed && (

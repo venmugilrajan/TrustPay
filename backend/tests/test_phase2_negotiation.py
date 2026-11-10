@@ -3,6 +3,7 @@ from httpx import AsyncClient, ASGITransport
 from backend.main import app
 from backend.schemas.schemas import ContractSchema, MilestoneSchema, AcceptanceCriterionSchema
 from backend.services.llm_service import LLMService
+from backend.core.auth import create_access_token
 
 
 def test_contract_sum_validation_success():
@@ -73,9 +74,12 @@ def test_prompt_injection_guardrail():
 
 @pytest.mark.asyncio
 async def test_job_negotiation_and_approval_flow():
-    """End-to-end API test: create job -> negotiate -> approve."""
+    """Marketplace flow: client posts job -> freelancer applies -> agents negotiate -> both accept."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        client_token = create_access_token("client-maya", "client", "Maya Patel")
+        freelancer_token = create_access_token("freelancer-arjun", "freelancer", "Arjun Kumar")
+
         # 1. Health check
         res = await client.get("/api/health")
         assert res.status_code == 200
@@ -88,37 +92,58 @@ async def test_job_negotiation_and_approval_flow():
             "currency": "USD",
             "deadline": "2026-12-05",
         }
-        res = await client.post("/api/jobs", json=create_payload)
+        res = await client.post("/api/jobs", headers={"Authorization": f"Bearer {client_token}"}, json=create_payload)
         assert res.status_code == 201
-        job_data = res.json()
-        job_id = job_data["id"]
-        assert job_data["status"] == "negotiating"
+        job_id = res.json()["id"]
 
-        # 3. Advance negotiation (run to completion)
-        res = await client.post(f"/api/jobs/{job_id}/negotiate?run_all=true")
+        # 3. Freelancer applies
+        app_res = await client.post(
+            f"/api/jobs/{job_id}/apply",
+            headers={"Authorization": f"Bearer {freelancer_token}"},
+            json={
+                "freelancer_name": "Arjun Kumar",
+                "min_price": 800.00,
+                "preferred_price": 1100.00,
+                "time_needed_days": 14,
+            },
+        )
+        assert app_res.status_code == 201
+        app_id = app_res.json()["id"]
+
+        # 4. Advance negotiation to completion (minimum 3 rounds)
+        res = await client.post(
+            f"/api/applications/{app_id}/negotiate?run_all=true",
+            headers={"Authorization": f"Bearer {client_token}"},
+        )
         assert res.status_code == 200
         neg_data = res.json()
-        assert neg_data["status"] == "awaiting_approval"
-        assert neg_data["turns_count"] >= 2
+        assert neg_data["status"] in ("awaiting_decision", "awaiting_approval")
+        assert neg_data["turns_count"] >= 3
 
-        # 4. Fetch job details
-        res = await client.get(f"/api/jobs/{job_id}")
+        # 5. Fetch application details
+        res = await client.get(f"/api/applications/{app_id}", headers={"Authorization": f"Bearer {client_token}"})
         assert res.status_code == 200
         detail = res.json()
-        assert detail["status"] == "awaiting_approval"
         assert detail["contract"] is not None
         assert detail["contract"]["total_amount"] <= 1200.00
         assert len(detail["contract"]["milestones"]) > 0
 
-        # 5. Client approves contract
-        res = await client.post(f"/api/jobs/{job_id}/approve", json={"role": "client"})
+        # 6. Client accepts contract
+        res = await client.post(
+            f"/api/applications/{app_id}/decide",
+            headers={"Authorization": f"Bearer {client_token}"},
+            json={"role": "client", "action": "accept"},
+        )
         assert res.status_code == 200
-        assert res.json()["client_approved"] is True
-        assert res.json()["freelancer_approved"] is False
+        assert res.json()["client_accepted"] is True
+        assert res.json()["freelancer_accepted"] is False
 
-        # 6. Freelancer approves contract
-        res = await client.post(f"/api/jobs/{job_id}/approve", json={"role": "freelancer"})
+        # 7. Freelancer accepts contract
+        res = await client.post(
+            f"/api/applications/{app_id}/decide",
+            headers={"Authorization": f"Bearer {freelancer_token}"},
+            json={"role": "freelancer", "action": "accept"},
+        )
         assert res.status_code == 200
-        assert res.json()["freelancer_approved"] is True
+        assert res.json()["freelancer_accepted"] is True
         assert res.json()["status"] == "approved"
-

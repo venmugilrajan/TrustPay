@@ -11,7 +11,7 @@ from backend.api.milestones import router as milestones_router
 from backend.api.disputes import router as disputes_router
 from backend.api.webhooks import router as webhooks_router
 from backend.api.timeline import router as timeline_router
-from backend.api.seed import router as seed_router
+from backend.api.demo import router as demo_router
 from backend.api.auth import router as auth_router
 from backend.api.applications import router as applications_router
 
@@ -55,7 +55,7 @@ app.include_router(milestones_router)
 app.include_router(disputes_router)
 app.include_router(webhooks_router)
 app.include_router(timeline_router)
-app.include_router(seed_router)
+app.include_router(demo_router)
 
 
 @app.get("/api/health")
@@ -66,7 +66,8 @@ async def health_check():
     paypal_live = False
     if not settings.MOCK_MODE and not paypal_service.is_mock_mode:
         try:
-            token = await paypal_service.get_access_token()
+            import asyncio
+            token = await asyncio.wait_for(paypal_service.get_access_token(), timeout=2.0)
             paypal_live = bool(token and not token.startswith("mock_"))
         except Exception:
             paypal_live = False
@@ -85,5 +86,5 @@ async def health_check():
 
 @app.get("/api/stats")
 async def get_system_stats(db: AsyncSession = Depends(get_db)):
-    from backend.api.jobs import get_job_stats
-    return await get_job_stats(db)
+    from backend.services.stats_service import stats_service
+    return await stats_service.get_system_stats(db)
