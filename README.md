@@ -52,7 +52,7 @@ flowchart TD
         Runner["Code Runner Engine<br/>(backend/services/sandbox_service.py)"]
         E2B["E2B Cloud MicroVM"]
         Docker["Docker Isolated Container<br/>(--network none / 256MB RAM / Read-Only Root)"]
-        Disabled["Static Fallback Review<br/>('Tests were not executed')"]
+        Disabled["Static Fallback Review<br/>(Tests not executed fallback)"]
     end
 
     subgraph PayPalAPI ["PayPal Sandbox API (Orders v2 REST)"]
@@ -62,32 +62,34 @@ flowchart TD
         PPRefund["POST /v2/payments/captures/{id}/refund"]
     end
 
-    CP -->|1. Post Project Brief| API
-    FP -->|2. Submit Private Floor & Target Quote| API
+    CP -->|"1. Post Project Brief"| API
+    FP -->|"2. Submit Private Floor & Target Quote"| API
 
-    API <-->|3. Round 1-6 Proposals| CA
-    API <-->|3. Round 1-6 Counter-Offers| FA
-    CA <-->|Formulate Structured Contract| FA
+    API <-->|"3. Round 1-6 Proposals"| CA
+    API <-->|"3. Round 1-6 Counter-Offers"| FA
+    CA <-->|"Formulate Structured Contract"| FA
 
-    CP & FP -->|4. Mutual Contract Acceptance| API
-    API -->|5. Initialize Escrow| PPService
-    PPService -->|6. Authorization Hold| PPHold
+    CP -->|"4. Mutual Contract Acceptance"| API
+    FP -->|"4. Mutual Contract Acceptance"| API
+    API -->|"5. Initialize Escrow"| PPService
+    PPService -->|"6. Authorization Hold"| PPHold
 
-    FP -->|7. Submit Code & Deliverables| API
-    API -->|8. Execute Acceptance Tests| Runner
+    FP -->|"7. Submit Code & Deliverables"| API
+    API -->|"8. Execute Acceptance Tests"| Runner
     Runner --> E2B
     Runner --> Docker
     Runner --> Disabled
-    Runner -->|Execution Logs & Artifacts| JA
+    Runner -->|"Execution Logs & Artifacts"| JA
 
-    JA -->|9. Evaluation Score (0.00 - 1.00)| API
-    API -->|Pass >= 0.85: Full Capture| PPService
-    API -->|Partial 0.50-0.84: Proportional Capture| PPService
-    PPService -->|10. Milestone Payout| PPCapture
+    JA -->|"9. Evaluation Score: 0.00 to 1.00"| API
+    API -->|"Score 0.85 and above: Full Capture"| PPService
+    API -->|"Score 0.50 to 0.84: Proportional Capture"| PPService
+    PPService -->|"10. Milestone Payout"| PPCapture
 
-    CP & FP -.->|Optional Dispute| DA
-    DA -->|Binding Ruling| PPService
-    PPService -->|Refund Client or Release Freelancer| PPRefund
+    CP -.->|"Optional Dispute"| DA
+    FP -.->|"Optional Dispute"| DA
+    DA -->|"Binding Ruling"| PPService
+    PPService -->|"Refund Client or Release Freelancer"| PPRefund
 ```
 
 ---
