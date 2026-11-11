@@ -1016,16 +1016,18 @@ async def create_funding_order(
     if not app.contract:
         raise HTTPException(status_code=400, detail="No approved contract found for this application.")
 
-    # Idempotent re-entry: If THIS application is already being funded with an order, reuse it
-    if job.status == "funding" and job.paypal_order_id and app.status == "funding" and app.contract.paypal_order_id == job.paypal_order_id:
-        return {
-            "application_id": app.id,
-            "order_id": job.paypal_order_id,
-            "approve_url": None,
-            "amount": app.contract.total_amount,
-            "status": "order_created",
-            "message": "Existing PayPal order resumed.",
-        }
+    # Idempotent re-entry: If this specific application is already the one being funded, reuse its order
+    if job.status == "funding" and job.paypal_order_id and (app.status == "funding" or app.contract.paypal_order_id == job.paypal_order_id):
+        order_id = app.contract.paypal_order_id or job.paypal_order_id
+        if order_id:
+            return {
+                "application_id": app.id,
+                "order_id": order_id,
+                "approve_url": None,
+                "amount": app.contract.total_amount,
+                "status": "order_created",
+                "message": "Existing PayPal order resumed.",
+            }
 
     # Atomic conditional claim: transition job status from 'open' / 'approved' -> 'funding'
     claim_stmt = (

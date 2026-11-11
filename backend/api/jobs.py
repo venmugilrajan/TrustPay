@@ -1233,11 +1233,30 @@ async def fund_job_escrow(
     if not apps:
         raise HTTPException(status_code=404, detail="No application found for this job.")
 
+    job_stmt = select(Job).where(Job.id == job_id)
+    job_res = await db.execute(job_stmt)
+    job = job_res.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
     target_app = None
-    for a in apps:
-        if a.status in ("approved", "funding", "funded"):
-            target_app = a
-            break
+    # 1. Prefer application corresponding to job's active_contract_id
+    if job.active_contract_id:
+        contract_stmt = select(Contract).where(Contract.id == job.active_contract_id)
+        c_res = await db.execute(contract_stmt)
+        c = c_res.scalar_one_or_none()
+        if c and c.application_id:
+            for a in apps:
+                if a.id == c.application_id:
+                    target_app = a
+                    break
+
+    # 2. Otherwise find an approved or funding application
+    if not target_app:
+        for a in apps:
+            if a.status in ("approved", "funding", "funded"):
+                target_app = a
+                break
     if not target_app:
         target_app = apps[0]
 
@@ -1269,11 +1288,30 @@ async def authorize_job_payment(
     if not apps:
         raise HTTPException(status_code=404, detail="No application found for this job.")
 
+    job_stmt = select(Job).where(Job.id == job_id)
+    job_res = await db.execute(job_stmt)
+    job = job_res.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+
     target_app = None
-    for a in apps:
-        if a.status in ("approved", "funding", "funded"):
-            target_app = a
-            break
+    # 1. Prefer application corresponding to job's active_contract_id
+    if job.active_contract_id:
+        contract_stmt = select(Contract).where(Contract.id == job.active_contract_id)
+        c_res = await db.execute(contract_stmt)
+        c = c_res.scalar_one_or_none()
+        if c and c.application_id:
+            for a in apps:
+                if a.id == c.application_id:
+                    target_app = a
+                    break
+
+    # 2. Otherwise find an approved or funding application
+    if not target_app:
+        for a in apps:
+            if a.status in ("approved", "funding", "funded"):
+                target_app = a
+                break
     if not target_app:
         target_app = apps[0]
 

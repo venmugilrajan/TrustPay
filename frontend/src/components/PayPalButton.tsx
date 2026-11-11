@@ -76,8 +76,17 @@ export default function PayPalButton({
           },
           createOrder: async () => {
             setError(null);
-            const res = await createFundOrder(jobId);
-            return res.order_id;
+            try {
+              const res = await createFundOrder(jobId);
+              if (!res?.order_id) {
+                throw new Error("No PayPal order ID returned.");
+              }
+              return res.order_id;
+            } catch (err: any) {
+              const msg = err?.message || "Failed to initialize PayPal order";
+              setError(`${msg}. You can click 'Quick Sandbox Authorize' below.`);
+              throw err;
+            }
           },
           onApprove: async (data: any) => {
             setLoading(true);
