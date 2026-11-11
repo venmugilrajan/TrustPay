@@ -346,6 +346,7 @@ export interface Job {
   created_at: string;
   contract?: Contract;
   applications?: Application[];
+  my_application?: Application;
   negotiation_turns?: NegotiationTurn[];
   audit_logs?: AuditLog[];
 }

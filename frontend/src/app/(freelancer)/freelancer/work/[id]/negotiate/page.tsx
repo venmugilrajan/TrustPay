@@ -237,14 +237,14 @@ export default function FreelancerNegotiatePage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
-                  Client Accepted Your Quote!
+                  Client Accepted Your Proposal!
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
-                  Action Required
+                  Confirmation Needed
                 </span>
               </div>
               <p className="text-xs text-content-secondary leading-relaxed max-w-2xl">
-                Maya Patel (Client) approved your quote and agreed terms of <strong className="text-content-primary font-serif font-bold">${Number(contract?.total_amount || 0).toFixed(2)} USD</strong> across {contract?.milestones?.length || 3} milestones. Please confirm acceptance to begin development.
+                The client approved your quote of <strong className="text-content-primary font-serif font-bold">${Number(contract?.total_amount || 0).toFixed(2)} USD</strong> for <strong>&quot;{job.title}&quot;</strong> across {contract?.milestones?.length || 3} milestones. Do you confirm and accept to work on this project?
               </p>
             </div>
           </div>
@@ -254,9 +254,9 @@ export default function FreelancerNegotiatePage() {
             icon={<CheckCircle2 className="w-4 h-4 text-white" />}
             onClick={handleAcceptContract}
             loading={approving}
-            className="shrink-0"
+            className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
           >
-            Accept Work & Confirm Contract
+            Confirm & Accept Work
           </Button>
         </div>
       )}
@@ -264,13 +264,13 @@ export default function FreelancerNegotiatePage() {
       <NextStepCard
         stepText={
           isThanksgiving
-            ? "Thank You Notice: The client selected another proposal for this contract. Keep exploring new client listings."
+            ? "Thank You Notice: The client selected another candidate's quote for this project. Your profile remains active for new client listings."
             : isClientAccepted && !isFreelancerAccepted
-            ? "Maya Patel (Client) accepted your quote! Review the agreed terms on the right and click 'Accept Work & Confirm Contract' to lock in the contract."
+            ? `The client selected your quote for "${job.title}"! Please review the terms on the right and click "Confirm & Accept Work" to begin.`
             : isNoDeal
-            ? "Proposal Ended: Budget Constraints Did Not Overlap. The client's budget was below your minimum acceptable price. The client's project remains open for other proposals, and you can explore other opportunities."
+            ? "Proposal Ended: Budget Constraints Did Not Overlap. The client's budget was below your minimum acceptable price."
             : isAgreed
-            ? "Both agents reached agreement! Review terms on the right and confirm as Freelancer."
+            ? "Agreed Terms Ready: Waiting for the client to review quotes and select a candidate."
             : turns.length === 0
             ? "Click below to begin autonomous multi-round negotiation between your Freelancer Agent and the Client Agent."
             : "Your agent is actively negotiating terms. Minimum 3 rounds of proposals before final contract consensus."
@@ -387,23 +387,32 @@ export default function FreelancerNegotiatePage() {
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Contract Approved by Both! Waiting for Client Escrow Funding</span>
                     </div>
+                  ) : isClientAccepted && !isFreelancerAccepted ? (
+                    <Button
+                      size="md"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md"
+                      onClick={handleAcceptContract}
+                      loading={approving}
+                      icon={<CheckCircle2 className="w-4 h-4 text-white" />}
+                    >
+                      Confirm & Accept Work with Client
+                    </Button>
                   ) : isFreelancerAccepted && !isClientAccepted ? (
                     <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-btn text-center text-xs font-semibold text-amber-800 dark:text-amber-200 flex items-center justify-center gap-1.5">
                       <Clock className="w-4 h-4 text-amber-600" />
-                      <span>Contract Confirmed by You · Waiting for Client Approval</span>
+                      <span>You Confirmed Terms · Waiting for Client Selection</span>
                     </div>
                   ) : (
-                    <Button
-                      size="md"
-                      className="w-full"
-                      onClick={handleAcceptContract}
-                      loading={approving}
-                      icon={<CheckCircle2 className="w-4 h-4" />}
-                    >
-                      {isClientAccepted
-                        ? "Accept Work & Confirm Contract"
-                        : "Accept Contract as Freelancer"}
-                    </Button>
+                    /* Strict sequential flow: Client must select/approve freelancer's quote first */
+                    <div className="p-3 bg-surface-subtle border border-border-subtle rounded-btn text-center space-y-1">
+                      <div className="text-xs font-semibold text-content-secondary flex items-center justify-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-accent" />
+                        <span>Awaiting Client Selection</span>
+                      </div>
+                      <p className="text-[11px] text-content-muted leading-relaxed">
+                        Terms agreed by AI agents. Once the client approves your proposal, you will receive a notification here to confirm and accept the work.
+                      </p>
+                    </div>
                   )}
 
                   {isNegotiating && (

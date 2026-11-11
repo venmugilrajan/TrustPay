@@ -373,20 +373,18 @@ export default function FreelancerContractWorkPage() {
         </div>
 
         {/* Freelancer Confirmation Action Banner */}
-        {(job.status === "awaiting_approval" || job.status === "awaiting_freelancer_acceptance" || (job.client_approved && !job.freelancer_approved)) && !job.freelancer_approved && (
+        {((job.my_application?.client_accepted || job.status === "awaiting_freelancer_acceptance" || (job.client_approved && !job.freelancer_approved)) && !job.freelancer_approved && !job.my_application?.freelancer_accepted) && (
           <div className="pt-4 border-t border-border-subtle flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-emerald-500/10 p-4 rounded-btn border border-emerald-500/30">
             <div>
               <p className="text-xs font-semibold text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{job.client_approved ? "Client Accepted Your Proposal!" : "Contract Terms Agreed"}</span>
+                <span>Client Accepted Your Proposal!</span>
               </p>
               <p className="text-xs text-content-secondary mt-0.5">
-                {job.client_approved
-                  ? "Maya Patel (Client) approved your quote. Review the 3 milestones below and confirm work acceptance."
-                  : "Review the milestone breakdown and confirm acceptance to proceed."}
+                The client approved your quote for &quot;{job.title}&quot;. Review the 3 milestones below and confirm work acceptance.
               </p>
             </div>
-            <Button size="sm" variant="primary" onClick={handleFreelancerApprove} loading={approving}>
+            <Button size="sm" variant="primary" onClick={handleFreelancerApprove} loading={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
               <CheckCircle2 className="w-4 h-4 mr-1.5 text-white" />
               <span>Confirm & Accept Work</span>
             </Button>
