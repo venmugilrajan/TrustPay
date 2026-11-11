@@ -15,22 +15,24 @@ services:
         value: false
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./trustpay.db
+      - key: LLM_PROVIDER
+        value: groq
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: openai/gpt-oss-20b
+        value: llama-3.3-70b-versatile
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
-        value: claude-sonnet-5-5
+        value: claude-3-5-sonnet-20241022
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
-      - key: SANDBOX_MODE
-        value: local
+      - key: SANDBOX_PROVIDER
+        value: disabled
 
   # Frontend App (Next.js 14)
   - type: web
