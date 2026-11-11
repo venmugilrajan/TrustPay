@@ -129,6 +129,10 @@ export default function FreelancerContractWorkPage() {
       setIsResubmitting(false);
       setSelectedSubmissionId(null); // automatically displays newest version!
       await loadJobData();
+      // Scroll to judge evaluation panel smoothly
+      setTimeout(() => {
+        window.scrollTo({ top: 300, behavior: "smooth" });
+      }, 100);
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit deliverable");
     } finally {

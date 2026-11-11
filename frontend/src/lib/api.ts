@@ -432,6 +432,8 @@ export async function submitMilestoneWork(jobId: string, milestoneId: string, fo
     const text = await res.text();
     throw new Error(text || "Failed to submit deliverable");
   }
+  // Invalidate SWR cache so next getJob call gets fresh evaluations and milestone statuses
+  invalidateApiCache();
   return res.json();
 }
 
