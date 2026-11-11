@@ -38,7 +38,7 @@ import {
 import ProgressTracker from "@/components/glass/ProgressTracker";
 import WhatToDoNow from "@/components/glass/WhatToDoNow";
 import GlassButton from "@/components/glass/GlassButton";
-import { getJob, approveContract, fileDispute, closeJob, closeApplication, reviseJobBudget, Job, Milestone } from "@/lib/api";
+import { getJob, approveContract, fileDispute, closeJob, closeApplication, reviseJobBudget, decideApplication, Job, Milestone } from "@/lib/api";
 
 export default function ClientContractDetailPage() {
   const params = useParams();
@@ -52,6 +52,19 @@ export default function ClientContractDetailPage() {
 
   // Approval state
   const [approving, setApproving] = useState(false);
+  const [acceptingAppId, setAcceptingAppId] = useState<string | null>(null);
+
+  const handleAcceptCandidateQuote = async (appId: string) => {
+    setAcceptingAppId(appId);
+    try {
+      await decideApplication(appId, "accept", { role: "client" });
+      await loadJobData();
+    } catch (err: any) {
+      alert(`Failed to accept candidate quote: ${err.message || err}`);
+    } finally {
+      setAcceptingAppId(null);
+    }
+  };
 
   // Dispute modal state
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
@@ -256,6 +269,29 @@ export default function ClientContractDetailPage() {
   const minQuote = candidateQuotes.length > 0 ? Math.min(...candidateQuotes) : 0;
   const avgQuote = candidateQuotes.length > 0 ? candidateQuotes.reduce((a, b) => a + b, 0) / candidateQuotes.length : 0;
 
+  // Determine best quote among candidate applications
+  const activeCandidateApps = (job.applications || []).filter(
+    (a) => (a.status as string) !== "closed" && (a.status as string) !== "rejected" && (a.status as string) !== "thanksgiving"
+  );
+  const getAppPrice = (a: any) => {
+    if (a.contract?.total_amount) return Number(a.contract.total_amount);
+    return Number(a.preferred_price || 0);
+  };
+  let bestQuoteAppId: string | null = null;
+  if (activeCandidateApps.length > 0) {
+    const sortedByQuote = [...activeCandidateApps].sort((a, b) => {
+      const pA = getAppPrice(a);
+      const pB = getAppPrice(b);
+      if (pA !== pB) return pA - pB;
+      return (a.time_needed_days || 999) - (b.time_needed_days || 999);
+    });
+    bestQuoteAppId = sortedByQuote[0]?.id || null;
+  }
+
+  const hasAwaitingFreelancer = (job.applications || []).some(
+    (a) => a.status === "awaiting_freelancer_acceptance" || (a.client_accepted && !a.freelancer_accepted)
+  );
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -337,7 +373,7 @@ export default function ClientContractDetailPage() {
                   <strong className="text-content-primary font-serif font-bold">${displayBudget.toFixed(2)} USD</strong>.
                 </p>
                 <p className="text-[11px] text-content-muted leading-relaxed">
-                  💡 <strong>Autonomous Recommendation:</strong> Revise your budget cap to match market quotes (e.g. ${minQuote.toFixed(2)} USD) to immediately conclude an agreement, or request a Milestone 1 partial scope delivery.
+                  <strong>Autonomous Recommendation:</strong> Revise your budget cap to match market quotes (e.g. ${minQuote.toFixed(2)} USD) to immediately conclude an agreement, or request a Milestone 1 partial scope delivery.
                 </p>
               </div>
             </div>
@@ -362,7 +398,9 @@ export default function ClientContractDetailPage() {
       {/* Role-Aware What To Do Now Guidance */}
       <WhatToDoNow
         headline={
-          job.status === "awaiting_approval"
+          hasAwaitingFreelancer
+            ? "Quote Accepted · Waiting for Freelancer Confirmation"
+            : job.status === "awaiting_approval"
             ? "Review and approve agreed contract"
             : job.status === "approved"
             ? "Fund safe hold to begin project"
@@ -373,13 +411,15 @@ export default function ClientContractDetailPage() {
             : job.status === "closed"
             ? "This job listing is closed"
             : allAppsNoDeal
-            ? "Listing open · 2 proposals exceeded budget cap"
+            ? "Listing open · Proposals exceeded budget cap"
             : (job.applications?.length ?? 0) === 0
             ? "Listing open · Waiting for freelancer applications"
-            : "Autonomous negotiation active"
+            : "Review candidate quotes & proposals"
         }
         explanation={
-          job.status === "awaiting_approval"
+          hasAwaitingFreelancer
+            ? "You accepted this proposal! The freelancer has been notified to review and confirm work acceptance before you fund the safe hold."
+            : job.status === "awaiting_approval"
             ? "Both AI agents reached agreement. Review the negotiated payment stages and approve to proceed to safe hold."
             : job.status === "approved"
             ? "Both parties approved. Authorize funds via PayPal so the freelancer can begin building."
@@ -390,10 +430,10 @@ export default function ClientContractDetailPage() {
             : job.status === "closed"
             ? "This project listing is closed and no longer accepting new proposals."
             : allAppsNoDeal
-            ? "Candidate proposals from Sofia Reyes and Arjun Kumar exceeded your $120.00 USD budget. Your listing remains active and open for new freelancer proposals that fit within budget."
+            ? "Candidate proposals from Sofia Reyes and Arjun Kumar exceeded your budget. Your listing remains active and open for new freelancer proposals that fit within budget."
             : (job.applications?.length ?? 0) === 0
             ? "Your project is published on the marketplace. Freelancers can review requirements and apply."
-            : "AI agents are negotiating deliverables, pricing, and timelines."
+            : "Review quotes submitted by candidate freelancers below. You can engage in AI negotiation or click 'Accept Quote & Select' on the best candidate."
         }
         actionLabel={
           job.status === "awaiting_approval" && !job.client_approved
@@ -591,74 +631,147 @@ export default function ClientContractDetailPage() {
           </div>
 
           <div className="divide-y divide-border-subtle">
-            {job.applications.map((app) => (
-              <div key={app.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-content-primary">
-                      {app.freelancer_name || (app.freelancer_id === "freelancer_sofia" ? "Sofia Reyes" : "Arjun Kumar")}
-                    </span>
-                    <span className="text-[11px] text-content-muted">
-                      ({(app as any).freelancer_title || "Full-Stack & Systems Engineer"})
-                    </span>
-                    <StatusChip status={app.status} className="scale-90" />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-content-secondary">
-                    <span>Target Quote: <strong>${Number(app.preferred_price || 0).toFixed(2)} USD</strong></span>
-                    <span>·</span>
-                    <span>Est. Timeline: <strong>{app.time_needed_days} days</strong></span>
-                    {app.skills && (
-                      <>
-                        <span>·</span>
-                        <span>Skills: <strong>{app.skills}</strong></span>
-                      </>
+            {job.applications.map((app) => {
+              const isBestQuote = app.id === bestQuoteAppId;
+              const hasContract = Boolean(app.contract?.total_amount);
+              const agreedAmount = Number(app.contract?.total_amount || 0);
+              const isThanksgiving = app.status === "thanksgiving";
+              const isAwaitingFreelancer =
+                app.status === "awaiting_freelancer_acceptance" ||
+                (app.client_accepted && !app.freelancer_accepted);
+              const canAcceptQuote =
+                !app.client_accepted &&
+                !isThanksgiving &&
+                (app.status as string) !== "approved" &&
+                (app.status as string) !== "funded" &&
+                (app.status as string) !== "completed" &&
+                (app.status as string) !== "closed";
+
+              return (
+                <div
+                  key={app.id}
+                  className={`py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                    isBestQuote && !isThanksgiving
+                      ? "bg-emerald-500/5 -mx-4 px-4 rounded-xl border border-emerald-500/20 my-1"
+                      : ""
+                  }`}
+                >
+                  <div className="space-y-1 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-xs text-content-primary">
+                        {app.freelancer_name ||
+                          (app.freelancer_id === "freelancer_sofia"
+                            ? "Sofia Reyes"
+                            : "Arjun Kumar")}
+                      </span>
+                      <span className="text-[11px] text-content-muted">
+                        ({(app as any).freelancer_title || "Full-Stack & Systems Engineer"})
+                      </span>
+                      {isBestQuote && !isThanksgiving && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+                          <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                          Best Quote · Recommended
+                        </span>
+                      )}
+                      {isThanksgiving && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface text-content-muted border border-border flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-content-muted shrink-0" />
+                          Thank You Notice Sent
+                        </span>
+                      )}
+                      <StatusChip status={app.status} className="scale-90" />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-content-secondary">
+                      <span>
+                        Initial Quote: <strong>${Number(app.preferred_price || 0).toFixed(2)} USD</strong>
+                      </span>
+                      {hasContract && agreedAmount > 0 && (
+                        <>
+                          <span>·</span>
+                          <span className="text-emerald-700 dark:text-emerald-300 font-semibold">
+                            Agreed Offer: <strong>${agreedAmount.toFixed(2)} USD</strong> ({app.contract?.milestones?.length || 3} milestones)
+                          </span>
+                        </>
+                      )}
+                      <span>·</span>
+                      <span>Est. Timeline: <strong>{app.time_needed_days} days</strong></span>
+                      {app.skills && (
+                        <>
+                          <span>·</span>
+                          <span>Skills: <strong>{app.skills}</strong></span>
+                        </>
+                      )}
+                    </div>
+                    {app.notes && (
+                      <p className="text-xs text-content-muted italic line-clamp-1 max-w-md">
+                        "{app.notes}"
+                      </p>
                     )}
                   </div>
-                  {app.notes && (
-                    <p className="text-xs text-content-muted italic line-clamp-1 max-w-md">
-                      "{app.notes}"
-                    </p>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Link href={`/client/jobs/${job.id}/negotiate?app_id=${app.id}`}>
-                    <Button variant="outline" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />}>
-                      {app.status === "funded"
-                        ? "Negotiation History"
-                        : app.status === "no_deal"
-                        ? "View Closed Thread"
-                        : "Negotiation Thread"}
-                    </Button>
-                  </Link>
-                  {["negotiating", "no_deal", "pending", "applied"].includes(app.status) && job.status !== "closed" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon={<XCircle className="w-3.5 h-3.5 text-accent-rose" />}
-                      onClick={() => handleCloseApplication(app.id)}
-                      loading={closingAppId === app.id}
-                      title="Dismiss this candidate's proposal"
-                    >
-                      Dismiss Proposal
-                    </Button>
-                  )}
-                  {app.status === "approved" && (
-                    <Link href={`/client/jobs/${job.id}/fund`}>
-                      <Button size="sm" icon={<Lock className="w-3.5 h-3.5" />}>
-                        Fund Escrow
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {canAcceptQuote && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={<CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                        onClick={() => handleAcceptCandidateQuote(app.id)}
+                        loading={acceptingAppId === app.id}
+                      >
+                        Accept Quote & Select
+                      </Button>
+                    )}
+
+                    {isAwaitingFreelancer && (
+                      <span className="text-xs font-semibold text-amber-800 dark:text-amber-200 bg-amber-100/80 dark:bg-amber-900/30 px-2.5 py-1 rounded border border-amber-300 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        Client Approved · Waiting for Freelancer
+                      </span>
+                    )}
+
+                    <Link href={`/client/jobs/${job.id}/negotiate?app_id=${app.id}`}>
+                      <Button variant="outline" size="sm" icon={<MessageSquare className="w-3.5 h-3.5" />}>
+                        {app.status === "funded"
+                          ? "Negotiation History"
+                          : app.status === "no_deal"
+                          ? "View Closed Thread"
+                          : "Negotiation Thread"}
                       </Button>
                     </Link>
-                  )}
-                  {app.status === "funded" && (
-                    <span className="text-xs font-semibold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded border border-emerald-300 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Escrow Active
-                    </span>
-                  )}
+
+                    {["negotiating", "no_deal", "pending", "applied"].includes(app.status) &&
+                      job.status !== "closed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<XCircle className="w-3.5 h-3.5 text-accent-rose" />}
+                          onClick={() => handleCloseApplication(app.id)}
+                          loading={closingAppId === app.id}
+                          title="Dismiss this candidate's proposal"
+                        >
+                          Dismiss Proposal
+                        </Button>
+                      )}
+
+                    {app.status === "approved" && (
+                      <Link href={`/client/jobs/${job.id}/fund`}>
+                        <Button size="sm" icon={<Lock className="w-3.5 h-3.5" />}>
+                          Fund PayPal Escrow (${(app.contract?.total_amount || displayBudget).toFixed(2)})
+                        </Button>
+                      </Link>
+                    )}
+
+                    {app.status === "funded" && (
+                      <span className="text-xs font-semibold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded border border-emerald-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Escrow Active
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}

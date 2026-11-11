@@ -85,6 +85,6 @@ async def health_check():
 
 
 @app.get("/api/stats")
-async def get_system_stats(db: AsyncSession = Depends(get_db)):
+async def get_system_stats(include_demo: bool = True, db: AsyncSession = Depends(get_db)):
     from backend.services.stats_service import stats_service
-    return await stats_service.get_system_stats(db)
+    return await stats_service.get_system_stats(db, include_demo=include_demo)

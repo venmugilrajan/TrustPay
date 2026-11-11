@@ -53,6 +53,28 @@ export function getRoleStatusDescriptor(
         iconName: "Clock",
       };
 
+    case "awaiting_freelancer_acceptance":
+    case "client_accepted":
+      return {
+        label: role === "client" ? "Client Approved · Waiting for Freelancer" : "Quote Accepted · Confirm Work",
+        badgeStyle: "warning",
+        plainSummary: role === "client"
+          ? "You approved this candidate's quote. Waiting for freelancer to confirm work acceptance."
+          : "The client accepted your proposal! Review terms and confirm acceptance to finalize contract.",
+        iconName: "Clock",
+      };
+
+    case "thanksgiving":
+    case "not_selected":
+      return {
+        label: role === "client" ? "Archived · Thank You Sent" : "Thank You · Other Quote Selected",
+        badgeStyle: "neutral",
+        plainSummary: role === "client"
+          ? "Another candidate was selected for this project. Thank you notice was delivered to this applicant."
+          : "Thank you for submitting your proposal! The client selected another quote for this project. Keep exploring open opportunities.",
+        iconName: "CheckCircle2",
+      };
+
     case "approved":
       return {
         label: role === "client" ? "Approved · Ready to Hold Funds" : "Approved · Awaiting Safe Hold",

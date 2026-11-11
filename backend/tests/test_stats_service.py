@@ -64,6 +64,30 @@ async def test_stats_service_ledger_sum_invariants():
             due_date="2026-11-27",
         )
         db.add_all([m1, m2])
+
+        # Record corresponding ledger entries for contract1
+        await StatsService.record_ledger_entry(
+            db,
+            job_id=job1.id,
+            contract_id=contract1.id,
+            milestone_id=None,
+            entry_type="authorized",
+            amount=1500.0,
+            paypal_id="AUTH_TEST_101",
+            actor="client",
+            note="Escrow authorization",
+        )
+        await StatsService.record_ledger_entry(
+            db,
+            job_id=job1.id,
+            contract_id=contract1.id,
+            milestone_id=m1.id,
+            entry_type="captured",
+            amount=800.0,
+            paypal_id="CAP_TEST_101",
+            actor="system",
+            note="Milestone 1 captured",
+        )
         await db.commit()
 
         # Fetch stats via service

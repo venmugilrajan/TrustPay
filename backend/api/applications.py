@@ -636,11 +636,22 @@ async def human_decision(
     if not is_owner_client and not is_applicant:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
-    # State Machine: must be in awaiting_decision or awaiting_approval
-    if app.status not in ("awaiting_decision", "awaiting_approval"):
+    # State Machine: allow decision if awaiting decision, negotiating, or awaiting freelancer confirmation
+    valid_decide_states = (
+        "awaiting_decision",
+        "awaiting_approval",
+        "negotiating",
+        "applied",
+        "pending",
+        "client_accepted",
+        "awaiting_freelancer_acceptance",
+        "thanksgiving",
+        "approved",
+    )
+    if app.status not in valid_decide_states:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot make decision: application is in '{app.status}' state (must be awaiting decision).",
+            detail=f"Cannot make decision: application is in '{app.status}' state.",
         )
 
     job = app.job
@@ -658,8 +669,110 @@ async def human_decision(
         return {"application_id": app.id, "status": "rejected", "message": "Draft contract rejected."}
 
     elif req.action == "accept":
+        # Ensure a 3-milestone contract exists if not present or needs upgrade
+        if not app.contract:
+            total_amt = app.preferred_price or job.max_budget
+            m1_amt = round(total_amt * 0.35, 2)
+            m2_amt = round(total_amt * 0.35, 2)
+            m3_amt = round(total_amt - m1_amt - m2_amt, 2)
+            contract = Contract(
+                job_id=job.id,
+                application_id=app.id,
+                version=1,
+                total_amount=total_amt,
+                currency="USD",
+                deadline=job.deadline,
+                status="draft",
+            )
+            db.add(contract)
+            await db.flush()
+            app.contract = contract
+
+            specs = [
+                ("Core Architecture & Data Layer", "Implement foundational logic, database models, and unit test harness.", m1_amt),
+                ("Business Logic & Core Services", "Implement asynchronous workflows, validation policies, and core endpoints.", m2_amt),
+                ("Integration, Security & Production Delivery", "Deliver end-to-end user workflows, API integration, and sandbox test suite.", m3_amt),
+            ]
+            for idx, (title, desc, amt) in enumerate(specs):
+                ms = Milestone(
+                    contract_id=contract.id,
+                    order_index=idx,
+                    title=title,
+                    description=desc,
+                    amount=amt,
+                    due_date=job.deadline,
+                    status="pending",
+                )
+                db.add(ms)
+                await db.flush()
+                crit = AcceptanceCriterion(
+                    milestone_id=ms.id,
+                    criterion_key=f"c{idx+1}",
+                    text=f"Automated verification criteria for {title}",
+                    weight=1.0,
+                )
+                db.add(crit)
+        elif len(app.contract.milestones or []) == 2 and app.status not in ("funded", "completed"):
+            # Upgrade existing 2-milestone contract to 3 proper milestones
+            total_amt = app.contract.total_amount
+            m1_amt = round(total_amt * 0.35, 2)
+            m2_amt = round(total_amt * 0.35, 2)
+            m3_amt = round(total_amt - m1_amt - m2_amt, 2)
+            for old_m in list(app.contract.milestones):
+                await db.delete(old_m)
+            await db.flush()
+            specs = [
+                ("Core Architecture & Data Layer", "Implement foundational logic, database models, and unit test harness.", m1_amt),
+                ("Business Logic & Core Services", "Implement asynchronous workflows, validation policies, and core endpoints.", m2_amt),
+                ("Integration, Security & Production Delivery", "Deliver end-to-end user workflows, API integration, and sandbox test suite.", m3_amt),
+            ]
+            for idx, (title, desc, amt) in enumerate(specs):
+                ms = Milestone(
+                    contract_id=app.contract.id,
+                    order_index=idx,
+                    title=title,
+                    description=desc,
+                    amount=amt,
+                    due_date=job.deadline,
+                    status="pending",
+                )
+                db.add(ms)
+                await db.flush()
+                crit = AcceptanceCriterion(
+                    milestone_id=ms.id,
+                    criterion_key=f"c{idx+1}",
+                    text=f"Automated verification criteria for {title}",
+                    weight=1.0,
+                )
+                db.add(crit)
+
         if current_user.role == "client":
             app.client_accepted = True
+            if not app.freelancer_accepted:
+                app.status = "awaiting_freelancer_acceptance"
+                job.client_approved = True
+
+                # Notify / archive remaining applicants with "thanksgiving"
+                other_stmt = (
+                    select(Application)
+                    .where(Application.job_id == job.id, Application.id != app.id)
+                )
+                other_res = await db.execute(other_stmt)
+                for other_app in other_res.scalars().all():
+                    if other_app.status not in ("funded", "completed", "approved"):
+                        other_app.status = "thanksgiving"
+
+                await add_audit_log(
+                    db,
+                    job.id,
+                    "CLIENT_ACCEPTED_APPLICATION_QUOTE",
+                    "client",
+                    {
+                        "application_id": app.id,
+                        "freelancer_name": app.freelancer_name,
+                        "total_amount": app.contract.total_amount if app.contract else app.preferred_price,
+                    },
+                )
         else:
             app.freelancer_accepted = True
 
@@ -667,6 +780,22 @@ async def human_decision(
             app.status = "approved"
             if app.contract:
                 app.contract.status = "approved"
+            job.status = "approved"
+            job.client_approved = True
+            job.freelancer_approved = True
+            if app.contract:
+                job.active_contract_id = app.contract.id
+
+            # Mark any other remaining active applications as thanksgiving
+            other_stmt = (
+                select(Application)
+                .where(Application.job_id == job.id, Application.id != app.id)
+            )
+            other_res = await db.execute(other_stmt)
+            for other_app in other_res.scalars().all():
+                if other_app.status not in ("funded", "completed", "approved"):
+                    other_app.status = "thanksgiving"
+
             await add_audit_log(
                 db,
                 job.id,
@@ -683,7 +812,15 @@ async def human_decision(
             "freelancer_accepted": app.freelancer_accepted,
             "client_approved": app.client_accepted,
             "freelancer_approved": app.freelancer_accepted,
-            "message": "Approval recorded." + (" Both parties agreed! Funding unlocked." if app.status == "approved" else " Awaiting other party."),
+            "message": "Approval recorded." + (
+                " Both parties agreed! Funding unlocked."
+                if app.status == "approved"
+                else (
+                    " Client accepted quote! Waiting for freelancer to confirm work."
+                    if app.status == "awaiting_freelancer_acceptance"
+                    else " Awaiting client approval."
+                )
+            ),
         }
 
     elif req.action == "counter":
@@ -890,10 +1027,10 @@ async def create_funding_order(
             "message": "Existing PayPal order resumed.",
         }
 
-    # Atomic conditional claim: transition job status from 'open' -> 'funding'
+    # Atomic conditional claim: transition job status from 'open' / 'approved' -> 'funding'
     claim_stmt = (
         update(Job)
-        .where(Job.id == job.id, Job.status.in_(["open", "in_negotiation"]))
+        .where(Job.id == job.id, Job.status.in_(["open", "in_negotiation", "approved", "awaiting_approval"]))
         .values(status="funding")
     )
     claim_res = await db.execute(claim_stmt)

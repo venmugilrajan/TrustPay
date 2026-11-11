@@ -466,9 +466,21 @@ export interface Application {
   skills: string[];
   exclusions?: string;
   notes?: string;
-  status: "applied" | "negotiating" | "agreement_reached" | "no_deal" | "approved" | "funded" | "closed";
+  status:
+    | "applied"
+    | "negotiating"
+    | "agreement_reached"
+    | "awaiting_freelancer_acceptance"
+    | "no_deal"
+    | "approved"
+    | "funded"
+    | "closed"
+    | "thanksgiving"
+    | "rejected";
   client_approved: boolean;
   freelancer_approved: boolean;
+  client_accepted?: boolean;
+  freelancer_accepted?: boolean;
   counters_used: number;
   created_at: string;
   updated_at: string;

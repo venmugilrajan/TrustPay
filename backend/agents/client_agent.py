@@ -26,7 +26,11 @@ Your goal is to represent the buyer's interests:
    - For Rounds 1 and 2: You MUST NEVER agree (agreed = false). Propose a counter-offer, adjust price, and state clear reasons.
    - For Round 3+: If the freelancer's offer is fair, within budget, and criteria are realistic, you may agree (agreed = true).
    - In every turn, explicitly specify proposed_price and price_change_reason.
-5. Total amount MUST equal the exact sum of all milestone amounts.
+5. MILESTONE STANDARD: Structure contracts across exactly 3 comprehensive milestones:
+   - Milestone 1: Core Architecture & Data Layer (approx 35% of total amount)
+   - Milestone 2: Business Logic & Core Services (approx 35% of total amount)
+   - Milestone 3: Integration, Security & Production Delivery (remaining approx 30% of total amount)
+   Total amount MUST equal the exact sum of all milestone amounts.
 6. Respond ONLY with valid JSON conforming to the requested schema.
 """
 
@@ -72,16 +76,17 @@ def _generate_mock_client_output(
     freelancer_proposal: Optional[Dict[str, Any]] = None,
     human_counter_message: Optional[str] = None,
 ) -> ClientNegotiationOutput:
-    """Deterministic fallback enforcing minimum 3 rounds and private max_budget ceiling."""
+    """Deterministic fallback enforcing minimum 3 rounds and private max_budget ceiling across 3 milestones."""
     base_ratio = 0.70 if priorities == "cheap" else (0.80 if priorities == "quality" else 0.75)
     
     if human_counter_message:
         p = round(max_budget * 0.88, 2)
-        m1 = round(p * 0.45, 2)
-        m2 = round(p - m1, 2)
+        m1 = round(p * 0.35, 2)
+        m2 = round(p * 0.35, 2)
+        m3 = round(p - m1 - m2, 2)
         return ClientNegotiationOutput(
-            message=f"Following client guidance ('{human_counter_message}'), I have adjusted our proposal to ${p:.2f} with refined deliverables.",
-            proposal_summary=f"Human counter revision at ${p:.2f}.",
+            message=f"Following client guidance ('{human_counter_message}'), I have adjusted our proposal to ${p:.2f} across 3 structured milestones with refined deliverables.",
+            proposal_summary=f"Human counter revision at ${p:.2f} across 3 milestones.",
             proposed_price=p,
             price_change_reason="Adjusted proposal in response to direct client feedback.",
             agreed=False,
@@ -92,24 +97,35 @@ def _generate_mock_client_output(
                 milestones=[
                     MilestoneSchema(
                         id="m1",
-                        title="Core Architecture & Test Suite",
-                        description="Implement foundational logic and test harness.",
+                        title="Core Architecture & Data Layer",
+                        description="Implement foundational logic, database models, and test harness.",
                         amount=m1,
                         due_date="2026-11-20",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate", weight=0.5),
-                            AcceptanceCriterionSchema(id="c2", text="Security compliance verified in isolated sandbox", weight=0.5),
+                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate in container sandbox", weight=0.5),
+                            AcceptanceCriterionSchema(id="c2", text="Security compliance verified with zero injection vulnerabilities", weight=0.5),
                         ],
                     ),
                     MilestoneSchema(
                         id="m2",
-                        title="Integration & Final Delivery",
-                        description="Complete user workflows and integration testing.",
+                        title="Business Logic & Core Services",
+                        description="Implement asynchronous service workflows, business validation, and rate limiting.",
                         amount=m2,
+                        due_date="2026-11-25",
+                        acceptance_criteria=[
+                            AcceptanceCriterionSchema(id="c3", text="Core business logic handles concurrent traffic without deadlocks", weight=0.5),
+                            AcceptanceCriterionSchema(id="c4", text="Automated service test suite achieves >= 90% coverage", weight=0.5),
+                        ],
+                    ),
+                    MilestoneSchema(
+                        id="m3",
+                        title="Integration, Security & Production Delivery",
+                        description="Complete user workflows, end-to-end integration testing, and production deployment scripts.",
+                        amount=m3,
                         due_date="2026-11-28",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c3", text="UI and API integration verified without errors", weight=0.5),
-                            AcceptanceCriterionSchema(id="c4", text="End-to-end execution passes sandbox tests", weight=0.5),
+                            AcceptanceCriterionSchema(id="c5", text="UI and API integration verified without console or runtime errors", weight=0.5),
+                            AcceptanceCriterionSchema(id="c6", text="Full end-to-end execution passes isolated sandbox checks", weight=0.5),
                         ],
                     ),
                 ],
@@ -118,11 +134,12 @@ def _generate_mock_client_output(
 
     if round_number == 1:
         p1 = round(max_budget * base_ratio, 2)
-        m1 = round(p1 * 0.45, 2)
-        m2 = round(p1 - m1, 2)
+        m1 = round(p1 * 0.35, 2)
+        m2 = round(p1 * 0.35, 2)
+        m3 = round(p1 - m1 - m2, 2)
         return ClientNegotiationOutput(
-            message=f"Hello! I am initiating terms for '{title}'. Based on required deliverables, our opening offer is ${p1:.2f} split into two milestones with strict automated testing criteria.",
-            proposal_summary=f"Opening offer of ${p1:.2f} across 2 milestones.",
+            message=f"Hello! I am initiating terms for '{title}'. Based on required deliverables, our opening offer is ${p1:.2f} split into 3 milestones with strict automated testing criteria.",
+            proposal_summary=f"Opening offer of ${p1:.2f} across 3 milestones.",
             proposed_price=p1,
             price_change_reason="Opening offer benchmarked to core deliverables and quality priority.",
             agreed=False,
@@ -133,24 +150,35 @@ def _generate_mock_client_output(
                 milestones=[
                     MilestoneSchema(
                         id="m1",
-                        title="Core Architecture & Backend Logic",
-                        description="Implement foundational logic and API endpoints with unit tests.",
+                        title="Core Architecture & Data Layer",
+                        description="Implement foundational logic, database models, and API endpoints with unit tests.",
                         amount=m1,
                         due_date="2026-11-20",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate", weight=0.5),
+                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate in container sandbox", weight=0.5),
                             AcceptanceCriterionSchema(id="c2", text="Code conforms to security standards with zero injection vulnerabilities", weight=0.5),
                         ],
                     ),
                     MilestoneSchema(
                         id="m2",
-                        title="Frontend & Integration Delivery",
-                        description="Build interactive UI and wire API endpoints.",
+                        title="Business Logic & Core Services",
+                        description="Implement asynchronous service workflows, business validation, and rate limiting.",
                         amount=m2,
+                        due_date="2026-11-25",
+                        acceptance_criteria=[
+                            AcceptanceCriterionSchema(id="c3", text="Core business logic handles concurrent traffic without deadlocks", weight=0.5),
+                            AcceptanceCriterionSchema(id="c4", text="Automated service test suite achieves >= 90% coverage", weight=0.5),
+                        ],
+                    ),
+                    MilestoneSchema(
+                        id="m3",
+                        title="Integration, Security & Production Delivery",
+                        description="Build interactive UI and wire API endpoints with full end-to-end verification.",
+                        amount=m3,
                         due_date="2026-11-28",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c3", text="UI loads correctly without console errors", weight=0.5),
-                            AcceptanceCriterionSchema(id="c4", text="End-to-end user workflow functions reliably", weight=0.5),
+                            AcceptanceCriterionSchema(id="c5", text="UI loads correctly without console errors", weight=0.5),
+                            AcceptanceCriterionSchema(id="c6", text="Full end-to-end user workflow functions reliably in sandbox", weight=0.5),
                         ],
                     ),
                 ],
@@ -159,11 +187,12 @@ def _generate_mock_client_output(
 
     elif round_number == 2:
         p2 = round(max_budget * min(base_ratio + 0.10, 0.90), 2)
-        m1 = round(p2 * 0.45, 2)
-        m2 = round(p2 - m1, 2)
+        m1 = round(p2 * 0.35, 2)
+        m2 = round(p2 * 0.35, 2)
+        m3 = round(p2 - m1 - m2, 2)
         return ClientNegotiationOutput(
-            message=f"I understand your perspective regarding technical complexity. I can raise our offer to ${p2:.2f}. We require strict automated sandbox verification.",
-            proposal_summary=f"Increased offer to ${p2:.2f}.",
+            message=f"I understand your perspective regarding technical complexity. I can raise our offer to ${p2:.2f} across 3 milestones. We require strict automated sandbox verification.",
+            proposal_summary=f"Increased offer to ${p2:.2f} across 3 milestones.",
             proposed_price=p2,
             price_change_reason="Concession to accommodate specialized testing harness and environment setup.",
             agreed=False,
@@ -174,24 +203,35 @@ def _generate_mock_client_output(
                 milestones=[
                     MilestoneSchema(
                         id="m1",
-                        title="Core Architecture & Backend Logic",
+                        title="Core Architecture & Data Layer",
                         description="Implement foundational logic and API endpoints with unit tests.",
                         amount=m1,
                         due_date="2026-11-20",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate", weight=0.5),
+                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate in container sandbox", weight=0.5),
                             AcceptanceCriterionSchema(id="c2", text="Code conforms to security standards with zero injection vulnerabilities", weight=0.5),
                         ],
                     ),
                     MilestoneSchema(
                         id="m2",
-                        title="Frontend & Integration Delivery",
-                        description="Complete UI integration and polish.",
+                        title="Business Logic & Core Services",
+                        description="Complete core service logic, validation policies, and automated test suite.",
                         amount=m2,
+                        due_date="2026-11-25",
+                        acceptance_criteria=[
+                            AcceptanceCriterionSchema(id="c3", text="Core business logic handles concurrent traffic without deadlocks", weight=0.5),
+                            AcceptanceCriterionSchema(id="c4", text="Automated service test suite achieves >= 90% coverage", weight=0.5),
+                        ],
+                    ),
+                    MilestoneSchema(
+                        id="m3",
+                        title="Integration, Security & Production Delivery",
+                        description="Complete UI integration, error handling, and production polish.",
+                        amount=m3,
                         due_date="2026-11-28",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c3", text="UI loads correctly without console errors", weight=0.5),
-                            AcceptanceCriterionSchema(id="c4", text="End-to-end user workflow functions reliably", weight=0.5),
+                            AcceptanceCriterionSchema(id="c5", text="UI loads correctly without console errors", weight=0.5),
+                            AcceptanceCriterionSchema(id="c6", text="End-to-end user workflow functions reliably in container sandbox", weight=0.5),
                         ],
                     ),
                 ],
@@ -207,11 +247,12 @@ def _generate_mock_client_output(
         if candidate_price is None:
             candidate_price = round(max_budget * 0.88, 2)
         final_price = min(float(candidate_price), float(max_budget))
-        m1 = round(final_price * 0.45, 2)
-        m2 = round(final_price - m1, 2)
+        m1 = round(final_price * 0.35, 2)
+        m2 = round(final_price * 0.35, 2)
+        m3 = round(final_price - m1 - m2, 2)
         return ClientNegotiationOutput(
-            message=f"Thank you for negotiating in good faith. ${final_price:.2f} is an agreeable price that satisfies our quality criteria. I accept these milestone terms!",
-            proposal_summary=f"Agreed to contract terms at ${final_price:.2f}.",
+            message=f"Thank you for negotiating in good faith. ${final_price:.2f} is an agreeable price that satisfies our quality criteria. I accept these 3-milestone terms!",
+            proposal_summary=f"Agreed to contract terms at ${final_price:.2f} across 3 milestones.",
             proposed_price=final_price,
             price_change_reason=f"Mutual agreement reached at ${final_price:.2f} balancing scope with quality criteria.",
             agreed=True,
@@ -222,24 +263,35 @@ def _generate_mock_client_output(
                 milestones=[
                     MilestoneSchema(
                         id="m1",
-                        title="Core Architecture & Backend Logic",
+                        title="Core Architecture & Data Layer",
                         description="Implement foundational logic and API endpoints.",
                         amount=m1,
                         due_date="2026-11-20",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate", weight=0.5),
+                            AcceptanceCriterionSchema(id="c1", text="Unit tests pass with 100% success rate in container sandbox", weight=0.5),
                             AcceptanceCriterionSchema(id="c2", text="Code conforms to security standards with zero injection vulnerabilities", weight=0.5),
                         ],
                     ),
                     MilestoneSchema(
                         id="m2",
-                        title="Frontend & Integration Delivery",
-                        description="Complete UI integration and polish.",
+                        title="Business Logic & Core Services",
+                        description="Complete core service logic, validation policies, and automated test suite.",
                         amount=m2,
+                        due_date="2026-11-25",
+                        acceptance_criteria=[
+                            AcceptanceCriterionSchema(id="c3", text="Core business logic handles concurrent traffic without deadlocks", weight=0.5),
+                            AcceptanceCriterionSchema(id="c4", text="Automated service test suite achieves >= 90% coverage", weight=0.5),
+                        ],
+                    ),
+                    MilestoneSchema(
+                        id="m3",
+                        title="Integration, Security & Production Delivery",
+                        description="Complete UI integration, error handling, and production polish.",
+                        amount=m3,
                         due_date="2026-11-28",
                         acceptance_criteria=[
-                            AcceptanceCriterionSchema(id="c3", text="UI loads correctly without console errors", weight=0.5),
-                            AcceptanceCriterionSchema(id="c4", text="End-to-end user workflow functions reliably", weight=0.5),
+                            AcceptanceCriterionSchema(id="c5", text="UI loads correctly without console errors", weight=0.5),
+                            AcceptanceCriterionSchema(id="c6", text="End-to-end user workflow functions reliably in container sandbox", weight=0.5),
                         ],
                     ),
                 ],
@@ -303,7 +355,8 @@ CRITICAL:
 2. If round_number < 3, you MUST set agreed=false and counter-propose with adjusted terms.
 3. If round_number >= 3 and previous offer is acceptable (<= ${max_budget:.2f}), you may set agreed=true.
 4. Total amount MUST equal the exact sum of milestone amounts.
-5. Your proposed_price MUST strictly be <= ${max_budget:.2f}.
+5. Always structure contract into exactly 3 milestones: Milestone 1: Core Architecture & Data Layer (approx 35%), Milestone 2: Business Logic & Core Services (approx 35%), Milestone 3: Integration, Security & Production Delivery (approx 30%).
+6. Your proposed_price MUST strictly be <= ${max_budget:.2f}.
 """
 
         def mock_gen(model_cls):

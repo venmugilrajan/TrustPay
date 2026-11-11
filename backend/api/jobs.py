@@ -317,6 +317,50 @@ def serialize_contract_model(c: Optional[Contract]) -> Optional[dict]:
     }
 
 
+async def ensure_three_milestones(db: AsyncSession, contract: Optional[Contract], deadline: str):
+    """Ensures draft/pending contracts have exactly 3 structured milestones."""
+    if not contract or not contract.milestones:
+        return
+    if len(contract.milestones) == 2 and contract.status not in ("funded", "completed"):
+        has_submissions = any(bool(getattr(m, "submissions", None)) for m in contract.milestones)
+        if not has_submissions:
+            total_amt = contract.total_amount
+            m1_amt = round(total_amt * 0.35, 2)
+            m2_amt = round(total_amt * 0.35, 2)
+            m3_amt = round(total_amt - m1_amt - m2_amt, 2)
+            for old_m in list(contract.milestones):
+                await db.delete(old_m)
+            await db.flush()
+            specs = [
+                ("Core Architecture & Data Layer", "Implement foundational logic, database models, and unit test harness.", m1_amt),
+                ("Business Logic & Core Services", "Implement asynchronous workflows, validation policies, and core endpoints.", m2_amt),
+                ("Integration, Security & Production Delivery", "Deliver end-to-end user workflows, API integration, and sandbox test suite.", m3_amt),
+            ]
+            new_ms = []
+            for idx, (title, desc, amt) in enumerate(specs):
+                ms = Milestone(
+                    contract_id=contract.id,
+                    order_index=idx,
+                    title=title,
+                    description=desc,
+                    amount=amt,
+                    due_date=deadline,
+                    status="pending",
+                )
+                db.add(ms)
+                await db.flush()
+                crit = AcceptanceCriterion(
+                    milestone_id=ms.id,
+                    criterion_key=f"c{idx+1}",
+                    text=f"Automated verification criteria for {title}",
+                    weight=1.0,
+                )
+                db.add(crit)
+                new_ms.append(ms)
+            contract.milestones = new_ms
+            await db.commit()
+
+
 @router.get("/api/client/jobs/{job_id}", response_model=dict)
 async def get_client_job(
     job_id: str,
@@ -348,6 +392,7 @@ async def get_client_job(
     if not target_contract:
         target_contract = job.active_contract or (job.contracts[0] if job.contracts else None)
 
+    await ensure_three_milestones(db, target_contract, job.deadline)
     contract_data = serialize_contract_model(target_contract)
 
     return {
@@ -810,6 +855,7 @@ async def get_job_legacy(
             if c.status in ("funded", "active", "completed"):
                 target_contract = c
 
+    await ensure_three_milestones(db, target_contract, job.deadline)
     contract_data = serialize_contract_model(target_contract)
 
     return {

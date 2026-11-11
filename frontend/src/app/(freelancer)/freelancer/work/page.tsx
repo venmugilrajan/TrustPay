@@ -228,6 +228,26 @@ export default function FreelancerWorkListPage() {
           );
         }
 
+        if (app.status === "thanksgiving") {
+          return (
+            <Link href={`/freelancer/work/${app.job_id}/negotiate`} onClick={(e) => e.stopPropagation()}>
+              <GlassButton variant="ghost" size="sm" icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
+                View Notice
+              </GlassButton>
+            </Link>
+          );
+        }
+
+        if ((app.client_accepted && !app.freelancer_accepted) || app.status === "awaiting_freelancer_acceptance") {
+          return (
+            <Link href={`/freelancer/work/${app.job_id}/negotiate`} onClick={(e) => e.stopPropagation()}>
+              <GlassButton variant="primary" size="sm" icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
+                Confirm Work
+              </GlassButton>
+            </Link>
+          );
+        }
+
         if (category === "negotiating") {
           return (
             <Link href={`/freelancer/work/${app.job_id}/negotiate`} onClick={(e) => e.stopPropagation()}>

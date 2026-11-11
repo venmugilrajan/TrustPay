@@ -84,6 +84,26 @@ export default function StatusChip({
       icon: <Clock className="w-3 h-3 stroke-[2.2]" />,
       style: "bg-warning/10 text-warning border-warning/25",
     },
+    awaiting_freelancer_acceptance: {
+      label: "Client Approved · Waiting for Freelancer",
+      icon: <Clock className="w-3 h-3 stroke-[2.2]" />,
+      style: "bg-warning/10 text-warning border-warning/25",
+    },
+    client_accepted: {
+      label: "Client Approved · Waiting for Freelancer",
+      icon: <Clock className="w-3 h-3 stroke-[2.2]" />,
+      style: "bg-warning/10 text-warning border-warning/25",
+    },
+    thanksgiving: {
+      label: "Thank You Sent",
+      icon: <CheckCircle2 className="w-3 h-3 stroke-[2.2]" />,
+      style: "bg-surface text-content-muted border-border",
+    },
+    not_selected: {
+      label: "Other Quote Selected",
+      icon: <CheckCircle2 className="w-3 h-3 stroke-[2.2]" />,
+      style: "bg-surface text-content-muted border-border",
+    },
     approved: {
       label: "Approved · Ready to Hold",
       icon: <CheckCircle2 className="w-3 h-3 stroke-[2.2]" />,

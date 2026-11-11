@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Sparkles, CheckCircle2, ArrowRight, RotateCcw, XCircle, AlertCircle } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowRight, RotateCcw, XCircle, AlertCircle, Clock } from "lucide-react";
 import {
   PageHeader,
   Card,
@@ -17,6 +17,7 @@ import {
   getJob,
   stepNegotiation,
   approveContract,
+  decideApplication,
   getStoredUser,
   ensureDemoUser,
   Job,
@@ -66,7 +67,11 @@ export default function FreelancerNegotiatePage() {
   const handleAcceptContract = async () => {
     setApproving(true);
     try {
-      await approveContract(jobId, "freelancer");
+      if (myApp?.id) {
+        await decideApplication(myApp.id, "accept", { role: "freelancer" });
+      } else {
+        await approveContract(jobId, "freelancer");
+      }
       await loadJobData();
       router.push(`/freelancer/work/${jobId}`);
     } catch (err: any) {
@@ -111,6 +116,14 @@ export default function FreelancerNegotiatePage() {
       ? job.contract
       : null);
 
+  const isThanksgiving = myApp?.status === "thanksgiving";
+  const isClientAccepted = Boolean(
+    myApp?.client_accepted || myApp?.status === "awaiting_freelancer_acceptance"
+  );
+  const isFreelancerAccepted = Boolean(
+    myApp?.freelancer_accepted || myApp?.status === "approved" || myApp?.status === "funded"
+  );
+
   const isNoDeal =
     myApp?.status === "no_deal" ||
     turns.some(
@@ -122,6 +135,7 @@ export default function FreelancerNegotiatePage() {
 
   const isAgreed =
     !isNoDeal &&
+    !isThanksgiving &&
     Boolean(
       contract ||
         (turns.length > 0 && turns.some((t) => t.agreed)) ||
@@ -133,9 +147,14 @@ export default function FreelancerNegotiatePage() {
   const isNegotiating =
     !isNoDeal &&
     !isAgreed &&
+    !isThanksgiving &&
     (turns.length > 0 || job.status === "negotiating" || myApp?.status === "negotiating");
 
-  const effectiveStatus = isNoDeal
+  const effectiveStatus = isThanksgiving
+    ? "thanksgiving"
+    : isClientAccepted && !isFreelancerAccepted
+    ? "awaiting_freelancer_acceptance"
+    : isNoDeal
     ? "no_deal"
     : isAgreed
     ? contract
@@ -177,9 +196,78 @@ export default function FreelancerNegotiatePage() {
         }
       />
 
+      {/* Thanksgiving Notice for Unselected Candidates */}
+      {isThanksgiving && (
+        <div className="p-5 rounded-2xl bg-surface-subtle border border-border space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-9 h-9 rounded-xl bg-surface text-content-muted flex items-center justify-center shrink-0 border border-border mt-0.5">
+                <CheckCircle2 className="w-5 h-5 text-content-muted" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-content-secondary">
+                    Proposal Archived · Thank You
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface text-content-muted border border-border">
+                    Other Candidate Selected
+                  </span>
+                </div>
+                <p className="text-xs text-content-secondary leading-relaxed max-w-2xl">
+                  The client has selected another candidate's quote for this project. Thank you for your time and competitive proposal! Your profile remains active and highly rated for open marketplace projects.
+                </p>
+              </div>
+            </div>
+            <Link href="/freelancer/opportunities">
+              <Button size="sm" variant="outline" className="shrink-0">
+                Browse Open Opportunities
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Client Accepted Notification Banner */}
+      {isClientAccepted && !isFreelancerAccepted && (
+        <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-subtle">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                  Client Accepted Your Quote!
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
+                  Action Required
+                </span>
+              </div>
+              <p className="text-xs text-content-secondary leading-relaxed max-w-2xl">
+                Maya Patel (Client) approved your quote and agreed terms of <strong className="text-content-primary font-serif font-bold">${Number(contract?.total_amount || 0).toFixed(2)} USD</strong> across {contract?.milestones?.length || 3} milestones. Please confirm acceptance to begin development.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="md"
+            variant="primary"
+            icon={<CheckCircle2 className="w-4 h-4 text-white" />}
+            onClick={handleAcceptContract}
+            loading={approving}
+            className="shrink-0"
+          >
+            Accept Work & Confirm Contract
+          </Button>
+        </div>
+      )}
+
       <NextStepCard
         stepText={
-          isNoDeal
+          isThanksgiving
+            ? "Thank You Notice: The client selected another proposal for this contract. Keep exploring new client listings."
+            : isClientAccepted && !isFreelancerAccepted
+            ? "Maya Patel (Client) accepted your quote! Review the agreed terms on the right and click 'Accept Work & Confirm Contract' to lock in the contract."
+            : isNoDeal
             ? "Proposal Ended: Budget Constraints Did Not Overlap. The client's budget was below your minimum acceptable price. The client's project remains open for other proposals, and you can explore other opportunities."
             : isAgreed
             ? "Both agents reached agreement! Review terms on the right and confirm as Freelancer."
@@ -294,15 +382,29 @@ export default function FreelancerNegotiatePage() {
 
                 {/* Primary Action Buttons */}
                 <div className="pt-3 border-t border-border-subtle space-y-2">
-                  <Button
-                    size="md"
-                    className="w-full"
-                    onClick={handleAcceptContract}
-                    loading={approving}
-                    icon={<CheckCircle2 className="w-4 h-4" />}
-                  >
-                    Accept Contract as Freelancer
-                  </Button>
+                  {isFreelancerAccepted && isClientAccepted ? (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-btn text-center text-xs font-semibold text-emerald-800 dark:text-emerald-200 flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Contract Approved by Both! Waiting for Client Escrow Funding</span>
+                    </div>
+                  ) : isFreelancerAccepted && !isClientAccepted ? (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-btn text-center text-xs font-semibold text-amber-800 dark:text-amber-200 flex items-center justify-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span>Contract Confirmed by You · Waiting for Client Approval</span>
+                    </div>
+                  ) : (
+                    <Button
+                      size="md"
+                      className="w-full"
+                      onClick={handleAcceptContract}
+                      loading={approving}
+                      icon={<CheckCircle2 className="w-4 h-4" />}
+                    >
+                      {isClientAccepted
+                        ? "Accept Work & Confirm Contract"
+                        : "Accept Contract as Freelancer"}
+                    </Button>
+                  )}
 
                   {isNegotiating && (
                     <Button
