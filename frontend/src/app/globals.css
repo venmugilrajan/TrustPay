@@ -309,12 +309,32 @@ a { color: inherit; text-decoration: none; }
   border-radius: 100px;
   position: relative;
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
 }
 .glass-button:hover {
   background: var(--glass-bg-strong);
   transform: translateY(-1px);
   box-shadow: var(--glass-shadow-strong), var(--glass-inset);
+}
+.glass-button:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Fast tactile click feedback on all buttons and interactive elements */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.985);
+  transition-duration: 50ms !important;
+}
+
+/* Optimize backdrop-filter GPU layering for smooth responsiveness */
+.glass,
+.glass-strong,
+.glass-subtle,
+.glass-nav,
+.glass-button {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* ============================================================
