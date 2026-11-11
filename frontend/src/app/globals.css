@@ -327,16 +327,6 @@ button:not(:disabled):active,
   transition-duration: 50ms !important;
 }
 
-/* Optimize backdrop-filter GPU layering for smooth responsiveness */
-.glass,
-.glass-strong,
-.glass-subtle,
-.glass-nav,
-.glass-button {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-
 /* ============================================================
    CONTENT LAYER (above aurora)
    ============================================================ */
