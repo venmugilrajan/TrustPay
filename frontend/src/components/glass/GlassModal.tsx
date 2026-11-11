@@ -38,14 +38,14 @@ export default function GlassModal({
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 overflow-y-auto" role="dialog" aria-modal="true">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
             onClick={onClose}
           />
           {/* Panel */}
@@ -55,24 +55,24 @@ export default function GlassModal({
             exit={{ opacity: 0, scale: 0.94, y: 16 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
             className={cn(
-              "relative w-full glass-strong p-6 z-10",
+              "relative w-full max-h-[calc(100vh-3rem)] flex flex-col glass-strong p-6 z-10 my-auto shadow-2xl",
               sizeClass,
               className
             )}
           >
             {title && (
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between pb-3 border-b border-border/40 shrink-0 mb-4">
                 <h2 className="text-lg font-semibold text-content-primary">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-content-muted hover:text-content-primary hover:bg-border transition-colors"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-content-muted hover:text-content-primary hover:bg-border transition-colors cursor-pointer"
                   aria-label="Close"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
-            <div className="relative z-10">{children}</div>
+            <div className="relative z-10 overflow-y-auto pr-1 -mr-1">{children}</div>
           </motion.div>
         </div>
       )}
