@@ -471,9 +471,25 @@ export async function submitMilestoneWork(
   }
 
   const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
-  const requestBody = isFormData ? payload : JSON.stringify(payload);
-  if (!isFormData) {
+  let requestBody: any;
+  if (isFormData) {
+    requestBody = payload;
+  } else {
     headers["Content-Type"] = "application/json";
+    const rawText = payload.content_text || "";
+    let b64Text = "";
+    try {
+      b64Text = typeof window !== "undefined"
+        ? window.btoa(unescape(encodeURIComponent(rawText)))
+        : Buffer.from(rawText).toString("base64");
+    } catch {
+      b64Text = "";
+    }
+    requestBody = JSON.stringify({
+      submission_type: payload.submission_type,
+      content_text: rawText,
+      content_text_b64: b64Text,
+    });
   }
 
   // Attempt direct live endpoint first

@@ -398,7 +398,14 @@ async def submit_milestone(
         try:
             body = await request.json()
             submission_type = str(body.get("submission_type") or "code")
-            content_text = str(body.get("content_text") or "")
+            if body.get("content_text_b64"):
+                import base64
+                try:
+                    content_text = base64.b64decode(body["content_text_b64"]).decode("utf-8")
+                except Exception:
+                    content_text = str(body.get("content_text") or "")
+            else:
+                content_text = str(body.get("content_text") or "")
         except Exception:
             pass
     else:
