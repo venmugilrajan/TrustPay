@@ -123,16 +123,24 @@ export default function FreelancerContractWorkPage() {
         formData.append("file", submissionFile);
       }
 
-      await submitMilestoneWork(jobId, selectedMilestoneId, formData);
+      const result = await submitMilestoneWork(jobId, selectedMilestoneId, formData);
       setSubmissionText("");
       setSubmissionFile(null);
       setIsResubmitting(false);
-      setSelectedSubmissionId(null); // automatically displays newest version!
+      setSelectedSubmissionId(null);
+      
+      // Update job state directly with fresh data
       await loadJobData();
-      // Scroll to judge evaluation panel smoothly
+
+      // Smoothly scroll down to AI Judge Verdict panel
       setTimeout(() => {
-        window.scrollTo({ top: 300, behavior: "smooth" });
-      }, 100);
+        const evalSection = document.getElementById("ai-judge-verdict-section");
+        if (evalSection) {
+          evalSection.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          window.scrollTo({ top: 350, behavior: "smooth" });
+        }
+      }, 150);
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit deliverable");
     } finally {
@@ -585,7 +593,8 @@ export default function FreelancerContractWorkPage() {
 
               {/* AI Judge Verdict View - Positioned Prominently Above Submission Form */}
               {activeEvaluation && (
-                <Card padding="lg" className="space-y-6 bg-surface shadow-soft border-border-strong">
+                <div id="ai-judge-verdict-section">
+                  <Card padding="lg" className="space-y-6 bg-surface shadow-soft border-border-strong ring-1 ring-border">
                   {/* Revision Switcher when multiple submissions exist */}
                   {sortedSubmissions.length > 1 && (
                     <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-btn bg-surface-subtle border border-border-subtle">
@@ -784,7 +793,8 @@ export default function FreelancerContractWorkPage() {
                     )
                   )}
                 </Card>
-              )}
+              </div>
+            )}
 
               {/* Deliverable Submission Form OR Milestone Passed Card */}
               <div ref={submissionFormRef}>
