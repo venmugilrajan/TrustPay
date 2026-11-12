@@ -77,8 +77,13 @@ export default function FreelancerContractWorkPage() {
     try {
       const data = await getJob(jobId);
       setJob(data);
-      if (data.contract?.milestones?.length && !selectedMilestoneId) {
-        setSelectedMilestoneId(data.contract.milestones[0].id);
+      if (data.contract?.milestones?.length) {
+        const firstActive = data.contract.milestones.find(
+          (m: any) => m.status !== "paid" && m.status !== "passed"
+        );
+        if (!selectedMilestoneId) {
+          setSelectedMilestoneId(firstActive ? firstActive.id : data.contract.milestones[0].id);
+        }
       }
     } catch (err) {
       console.warn("Failed to load freelancer work:", err);
@@ -120,14 +125,20 @@ export default function FreelancerContractWorkPage() {
     setSubmitError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("submission_type", submissionType);
-      formData.append("content_text", submissionText);
+      let result;
       if (submissionFile) {
+        const formData = new FormData();
+        formData.append("submission_type", submissionType);
+        formData.append("content_text", submissionText);
         formData.append("file", submissionFile);
+        result = await submitMilestoneWork(jobId, targetMilestoneId, formData);
+      } else {
+        result = await submitMilestoneWork(jobId, targetMilestoneId, {
+          submission_type: submissionType,
+          content_text: submissionText,
+        });
       }
 
-      const result = await submitMilestoneWork(jobId, targetMilestoneId, formData);
       setSubmissionText("");
       setSubmissionFile(null);
       setIsResubmitting(false);
@@ -147,6 +158,10 @@ export default function FreelancerContractWorkPage() {
       }, 150);
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit deliverable");
+      // Even if network reported an error, refresh to check if AI Judge completed and released payout
+      try {
+        await loadJobData();
+      } catch {}
     } finally {
       setSubmitting(false);
     }

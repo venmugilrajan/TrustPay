@@ -413,6 +413,29 @@ async def seed_demo_scenarios(db: AsyncSession = Depends(get_db)):
         db, job_c.id, contract_c.id, None, "authorized", 900.00, "AUTH-DEMO-SCENARIO-C", "client", "PayPal escrow authorization", is_demo=True
     )
 
+    # =========================================================================
+    # SCENARIO D: Open Opportunity (Autonomous Multi-Agent Settlement Engine)
+    # =========================================================================
+    job_d = Job(
+        id=str(uuid.uuid4()),
+        client_id="client_maya",
+        title="Autonomous Multi-Agent Settlement Engine",
+        description="Build an autonomous agent settlement service integrating PayPal Orders v2 APIs and Docker sandboxes for real-time code verification.",
+        deliverables="Production FastAPI backend service with PayPal sandbox webhook listener and test suite.",
+        max_budget=2000.00,
+        public_budget_estimate="$1,500 - $2,200 USD",
+        currency="USD",
+        deadline=(now + timedelta(days=30)).strftime("%Y-%m-%d"),
+        priorities="quality",
+        must_haves="Async worker architecture, high test coverage, strict prompt isolation",
+        status="open",
+        is_demo=True,
+        client_approved=False,
+        freelancer_approved=False,
+        created_at=now - timedelta(hours=2),
+    )
+    db.add(job_d)
+
     await db.commit()
 
     return {
@@ -421,7 +444,8 @@ async def seed_demo_scenarios(db: AsyncSession = Depends(get_db)):
             {"name": "Complete Success (ETL Pipeline)", "job_id": job_a.id, "amount": 1200.00, "status": "completed"},
             {"name": "Partial Delivery (ZK Verifier)", "job_id": job_b.id, "amount": 1500.00, "status": "in_progress"},
             {"name": "Active Dispute (Kafka Cluster)", "job_id": job_c.id, "amount": 900.00, "status": "disputed"},
+            {"name": "Open Opportunity (Settlement Engine)", "job_id": job_d.id, "amount": 2000.00, "status": "open"},
         ],
-        "message": "3 demo scenarios successfully seeded and recorded into the single-source-of-truth payments ledger.",
+        "message": "Demo scenarios successfully seeded and recorded into the single-source-of-truth payments ledger.",
     }
 

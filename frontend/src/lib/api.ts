@@ -143,6 +143,35 @@ export function invalidateApiCache(prefix?: string) {
   }
 }
 
+function sanitizeErrorResponse(errorText: string, status: number): string {
+  if (!errorText) return `HTTP ${status}`;
+  if (
+    errorText.includes("<title>Blocked</title>") ||
+    errorText.includes("<title>Attention Required") ||
+    errorText.startsWith("<!DOCTYPE") ||
+    errorText.startsWith("<html")
+  ) {
+    return "The request was blocked by Cloudflare/edge security filter. Ensure submissions do not contain raw SQL injection patterns.";
+  }
+  try {
+    const parsed = JSON.parse(errorText);
+    if (Array.isArray(parsed.detail)) {
+      return parsed.detail
+        .map((d: any) => {
+          const field = d.loc && Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
+          const msg = d.msg || JSON.stringify(d);
+          return field ? `${field}: ${msg}` : msg;
+        })
+        .join(". ");
+    } else if (typeof parsed.detail === "object" && parsed.detail !== null) {
+      return JSON.stringify(parsed.detail);
+    } else if (parsed.detail) {
+      return String(parsed.detail);
+    }
+  } catch {}
+  return errorText.length > 250 ? `${errorText.slice(0, 250)}...` : errorText;
+}
+
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const cleanPath = url.startsWith("/") ? url : `/${url}`;
   const finalPath = cleanPath.startsWith("/api/") ? cleanPath.slice(4) : cleanPath;
@@ -154,7 +183,16 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
     else if (window.location.pathname.startsWith("/client")) currentRole = "client";
   }
 
-  const token = getStoredToken(currentRole);
+  let token = getStoredToken(currentRole);
+  if (!token && currentRole && typeof window !== "undefined") {
+    const defaultUserId = currentRole === "client" ? "client_maya" : "freelancer_arjun";
+    try {
+      token = await ensureDemoUser(defaultUserId, currentRole);
+    } catch {
+      // ignore
+    }
+  }
+
   const storedUser = getStoredUser(currentRole);
   const authHeaders: Record<string, string> = {};
   if (token) authHeaders["Authorization"] = `Bearer ${token}`;
@@ -199,23 +237,7 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
 
   if (!res.ok) {
     const errorText = await res.text();
-    let detail = errorText;
-    try {
-      const parsed = JSON.parse(errorText);
-      if (Array.isArray(parsed.detail)) {
-        detail = parsed.detail
-          .map((d: any) => {
-            const field = d.loc && Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
-            const msg = d.msg || JSON.stringify(d);
-            return field ? `${field}: ${msg}` : msg;
-          })
-          .join(". ");
-      } else if (typeof parsed.detail === "object" && parsed.detail !== null) {
-        detail = JSON.stringify(parsed.detail);
-      } else if (parsed.detail) {
-        detail = String(parsed.detail);
-      }
-    } catch {}
+    const detail = sanitizeErrorResponse(errorText, res.status);
     throw new Error(detail || `HTTP ${res.status}`);
   }
 
@@ -434,7 +456,11 @@ export async function authorizePayment(id: string, orderId?: string, allowSandbo
   });
 }
 
-export async function submitMilestoneWork(jobId: string, milestoneId: string, formData: FormData): Promise<any> {
+export async function submitMilestoneWork(
+  jobId: string,
+  milestoneId: string,
+  payload: FormData | { submission_type: string; content_text: string }
+): Promise<any> {
   let token = getStoredToken("freelancer");
   if (!token) {
     token = await ensureDemoUser("freelancer_arjun", "freelancer");
@@ -444,37 +470,49 @@ export async function submitMilestoneWork(jobId: string, milestoneId: string, fo
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
+  const requestBody = isFormData ? payload : JSON.stringify(payload);
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
   // Attempt direct live endpoint first
   const fullUrl = `${API_BASE}/jobs/${jobId}/milestones/${milestoneId}/submit`;
   try {
     const res = await fetch(fullUrl, {
       method: "POST",
       headers,
-      body: formData,
+      body: requestBody,
     });
     if (res.ok) {
       invalidateApiCache();
       return res.json();
     }
     const errText = await res.text();
-    throw new Error(errText || `Server responded with ${res.status}`);
+    const cleanMsg = sanitizeErrorResponse(errText, res.status);
+    throw new Error(cleanMsg || `Server responded with ${res.status}`);
   } catch (err: any) {
     // If browser threw 'Failed to fetch' due to CORS/network, retry via relative proxy as seamless fallback
     if (API_BASE.startsWith("http")) {
       const fallbackUrl = `/api/jobs/${jobId}/milestones/${milestoneId}/submit`;
-      const fallbackRes = await fetch(fallbackUrl, {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-      if (fallbackRes.ok) {
-        invalidateApiCache();
-        return fallbackRes.json();
+      try {
+        const fallbackRes = await fetch(fallbackUrl, {
+          method: "POST",
+          headers,
+          body: requestBody,
+        });
+        if (fallbackRes.ok) {
+          invalidateApiCache();
+          return fallbackRes.json();
+        }
+        const fallbackErr = await fallbackRes.text();
+        const cleanFallback = sanitizeErrorResponse(fallbackErr, fallbackRes.status);
+        throw new Error(cleanFallback || `Fallback responded with ${fallbackRes.status}`);
+      } catch (fallbackCatch: any) {
+        throw new Error(sanitizeErrorResponse(fallbackCatch?.message || "", 500) || err.message);
       }
-      const fallbackErr = await fallbackRes.text();
-      throw new Error(fallbackErr || `Fallback responded with ${fallbackRes.status}`);
     }
-    throw err;
+    throw new Error(sanitizeErrorResponse(err?.message || "", 500));
   }
 }
 

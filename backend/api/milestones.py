@@ -3,7 +3,7 @@ import uuid
 import shutil
 from typing import Optional, List
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -380,36 +380,38 @@ def test_acceptance_criteria_two():
 
 
 @router.post("/api/milestones/{milestone_id}/submit", response_model=dict)
-async def submit_milestone_standalone(
-    milestone_id: str,
-    submission_type: str = Form(default="code"),
-    content_text: Optional[str] = Form(default=""),
-    file: Optional[UploadFile] = File(default=None),
-    current_user: TokenUser = Depends(require_freelancer),
-    db: AsyncSession = Depends(get_db),
-):
-    """Primary submission endpoint matching section 7 API specs."""
-    return await _handle_submission_flow(
-        milestone_id=milestone_id,
-        submission_type=submission_type,
-        content_text=content_text,
-        file=file,
-        current_user=current_user,
-        db=db,
-    )
-
-
 @router.post("/api/jobs/{job_id}/milestones/{milestone_id}/submit", response_model=dict)
-async def submit_milestone_nested(
-    job_id: str,
+async def submit_milestone(
+    request: Request,
     milestone_id: str,
-    submission_type: str = Form(default="code"),
-    content_text: Optional[str] = Form(default=""),
-    file: Optional[UploadFile] = File(default=None),
+    job_id: Optional[str] = None,
     current_user: TokenUser = Depends(require_freelancer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Nested submission endpoint for backwards compatibility."""
+    """Primary & nested deliverable submission endpoint supporting both JSON and multipart form data."""
+    content_type = request.headers.get("content-type", "").lower()
+    submission_type = "code"
+    content_text = ""
+    file: Optional[UploadFile] = None
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            submission_type = str(body.get("submission_type") or "code")
+            content_text = str(body.get("content_text") or "")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            submission_type = str(form.get("submission_type") or "code")
+            content_text = str(form.get("content_text") or "")
+            uploaded = form.get("file")
+            if isinstance(uploaded, UploadFile):
+                file = uploaded
+        except Exception:
+            pass
+
     return await _handle_submission_flow(
         milestone_id=milestone_id,
         submission_type=submission_type,
