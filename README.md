@@ -1,8 +1,8 @@
 # TrustPay — Autonomous Escrow & Milestone Verification for AI-Negotiated Deals
 
 [![PayPal AI Hackathon](https://img.shields.io/badge/PayPal%20AI%20Hackathon-Devpost%20Submission-0070BA?style=for-the-badge&logo=paypal)](https://devpost.com)
-[![Live Web Application](https://img.shields.io/badge/Live%20Demo-trustpay--zsji.onrender.com-0E9F6E?style=for-the-badge&logo=vercel)](https://trustpay-zsji.onrender.com)
-[![Live API Service](https://img.shields.io/badge/API%20Docs-trustpay--backend-0B1F3A?style=for-the-badge&logo=fastapi)](https://trustpay-backend-awil.onrender.com/docs)
+[![Live Web Application](https://img.shields.io/badge/Live%20Demo-trust--pay--nu.vercel.app-0E9F6E?style=for-the-badge&logo=vercel)](https://trust-pay-nu.vercel.app)
+[![Live API Service](https://img.shields.io/badge/API%20Docs-trustpay--backend-0B1F3A?style=for-the-badge&logo=fastapi)](https://trustpay-backend-al6e.onrender.com/docs)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-TrustPay-24493D?style=for-the-badge&logo=github)](https://github.com/venmugilrajan/TrustPay)
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Groq AI Llama 3.3](https://img.shields.io/badge/Groq%20AI-Llama%203.3%2070B-f55036?style=for-the-badge)](https://groq.com)
@@ -15,11 +15,11 @@
 
 ## Live Deployment Links
 
-- **Production Frontend**: [https://trustpay-zsji.onrender.com](https://trustpay-zsji.onrender.com)
-- **Production Backend API**: [https://trustpay-backend-awil.onrender.com](https://trustpay-backend-awil.onrender.com)
-- **Interactive Swagger Documentation**: [https://trustpay-backend-awil.onrender.com/docs](https://trustpay-backend-awil.onrender.com/docs)
-- **Backend Health Check**: [https://trustpay-backend-awil.onrender.com/api/health](https://trustpay-backend-awil.onrender.com/api/health)
-- **Interactive Evaluator Demo Hub**: [https://trustpay-zsji.onrender.com/demo](https://trustpay-zsji.onrender.com/demo)
+- **Production Frontend**: [https://trust-pay-nu.vercel.app](https://trust-pay-nu.vercel.app)
+- **Production Backend API**: [https://trustpay-backend-al6e.onrender.com](https://trustpay-backend-al6e.onrender.com)
+- **Interactive Swagger Documentation**: [https://trustpay-backend-al6e.onrender.com/docs](https://trustpay-backend-al6e.onrender.com/docs)
+- **Backend Health Check**: [https://trustpay-backend-al6e.onrender.com/api/health](https://trustpay-backend-al6e.onrender.com/api/health)
+- **Interactive Evaluator Demo Hub**: [https://trust-pay-nu.vercel.app/demo](https://trust-pay-nu.vercel.app/demo)
 
 ---
 
