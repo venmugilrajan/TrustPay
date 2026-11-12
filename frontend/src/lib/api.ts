@@ -1,6 +1,27 @@
-let rawBase = process.env.NEXT_PUBLIC_API_URL || "/api";
-if (rawBase.endsWith("/")) rawBase = rawBase.slice(0, -1);
-export const API_BASE = rawBase.endsWith("/api") ? rawBase : `${rawBase}/api`;
+// Live backend fallback on Render or custom deployment
+const DEFAULT_PROD_API = "https://trustpay-backend-awil.onrender.com";
+
+function resolveApiBase(): string {
+  // 1. If explicit env variable is set and not empty, use it
+  if (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.trim() !== "") {
+    let base = process.env.NEXT_PUBLIC_API_URL.trim();
+    if (base.endsWith("/")) base = base.slice(0, -1);
+    return base.endsWith("/api") ? base : `${base}/api`;
+  }
+
+  // 2. In browser on production (.onrender.com), point directly to the live backend
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname.includes("onrender.com") && !hostname.includes("localhost")) {
+      return `${DEFAULT_PROD_API}/api`;
+    }
+  }
+
+  // 3. Fallback to relative /api for local dev proxy
+  return "/api";
+}
+
+export const API_BASE = resolveApiBase();
 
 // Auth token storage helper with role-scoped isolation
 const TOKEN_KEY = "trustpay_auth_token";
