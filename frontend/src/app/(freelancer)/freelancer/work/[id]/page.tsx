@@ -105,7 +105,11 @@ export default function FreelancerContractWorkPage() {
 
   const handleSubmitDeliverable = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMilestoneId) return;
+    const targetMilestoneId = activeMilestone?.id || selectedMilestoneId;
+    if (!targetMilestoneId) {
+      setSubmitError("No active milestone selected.");
+      return;
+    }
 
     if (!submissionFile && !submissionText.trim()) {
       setSubmitError("Please provide code/deliverable content or upload a file.");
@@ -123,7 +127,7 @@ export default function FreelancerContractWorkPage() {
         formData.append("file", submissionFile);
       }
 
-      const result = await submitMilestoneWork(jobId, selectedMilestoneId, formData);
+      const result = await submitMilestoneWork(jobId, targetMilestoneId, formData);
       setSubmissionText("");
       setSubmissionFile(null);
       setIsResubmitting(false);

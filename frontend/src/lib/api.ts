@@ -443,19 +443,39 @@ export async function submitMilestoneWork(jobId: string, milestoneId: string, fo
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
+
+  // Attempt direct live endpoint first
   const fullUrl = `${API_BASE}/jobs/${jobId}/milestones/${milestoneId}/submit`;
-  const res = await fetch(fullUrl, {
-    method: "POST",
-    headers,
-    body: formData,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to submit deliverable");
+  try {
+    const res = await fetch(fullUrl, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (res.ok) {
+      invalidateApiCache();
+      return res.json();
+    }
+    const errText = await res.text();
+    throw new Error(errText || `Server responded with ${res.status}`);
+  } catch (err: any) {
+    // If browser threw 'Failed to fetch' due to CORS/network, retry via relative proxy as seamless fallback
+    if (API_BASE.startsWith("http")) {
+      const fallbackUrl = `/api/jobs/${jobId}/milestones/${milestoneId}/submit`;
+      const fallbackRes = await fetch(fallbackUrl, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+      if (fallbackRes.ok) {
+        invalidateApiCache();
+        return fallbackRes.json();
+      }
+      const fallbackErr = await fallbackRes.text();
+      throw new Error(fallbackErr || `Fallback responded with ${fallbackRes.status}`);
+    }
+    throw err;
   }
-  // Invalidate SWR cache so next getJob call gets fresh evaluations and milestone statuses
-  invalidateApiCache();
-  return res.json();
 }
 
 export async function fileDispute(
