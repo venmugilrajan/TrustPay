@@ -1,26 +1,37 @@
 # TrustPay — Autonomous Escrow & Milestone Verification for AI-Negotiated Deals
 
 [![PayPal AI Hackathon](https://img.shields.io/badge/PayPal%20AI%20Hackathon-Devpost%20Submission-0070BA?style=for-the-badge&logo=paypal)](https://devpost.com)
+[![Live Web Application](https://img.shields.io/badge/Live%20Demo-trustpay--zsji.onrender.com-0E9F6E?style=for-the-badge&logo=vercel)](https://trustpay-zsji.onrender.com)
+[![Live API Service](https://img.shields.io/badge/API%20Docs-trustpay--backend-0B1F3A?style=for-the-badge&logo=fastapi)](https://trustpay-backend-awil.onrender.com/docs)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-TrustPay-24493D?style=for-the-badge&logo=github)](https://github.com/venmugilrajan/TrustPay)
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Next.js 14](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
-[![Groq AI](https://img.shields.io/badge/Groq%20Llama%203.3-High--Speed%20Inference-f55036?style=for-the-badge)](https://groq.com)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python)](https://python.org)
+[![Groq AI Llama 3.3](https://img.shields.io/badge/Groq%20AI-Llama%203.3%2070B-f55036?style=for-the-badge)](https://groq.com)
+[![Next.js 14 App Router](https://img.shields.io/badge/Next.js-14.2%20App%20Router-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![FastAPI + SQLAlchemy](https://img.shields.io/badge/FastAPI-0.115%20Async-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 
 > **Two autonomous AI agents negotiate a freelance contract, PayPal locks funds via an authorization hold, and an impartial AI Judge tests deliverables in an isolated container sandbox to trigger automated milestone payouts.**
 
 ---
 
+## Live Deployment Links
+
+- **Production Frontend**: [https://trustpay-zsji.onrender.com](https://trustpay-zsji.onrender.com)
+- **Production Backend API**: [https://trustpay-backend-awil.onrender.com](https://trustpay-backend-awil.onrender.com)
+- **Interactive Swagger Documentation**: [https://trustpay-backend-awil.onrender.com/docs](https://trustpay-backend-awil.onrender.com/docs)
+- **Backend Health Check**: [https://trustpay-backend-awil.onrender.com/api/health](https://trustpay-backend-awil.onrender.com/api/health)
+- **Interactive Evaluator Demo Hub**: [https://trustpay-zsji.onrender.com/demo](https://trustpay-zsji.onrender.com/demo)
+
+---
+
 ## Executive Summary
 
-Over 70 million freelancers and clients enter commercial relationships with substantial counterparty risk. Clients fear paying upfront for unverified deliverables; freelancers routinely face delayed payments, unpaid invoices, or project abandonment after weeks of engineering work. Traditional escrow intermediaries charge 10–20% platform commissions and rely on slow human dispute resolution queues that take weeks.
+Over 70 million freelancers and businesses engage in contract work with substantial counterparty risk. Clients fear paying upfront for unverified or defective code; freelancers routinely encounter delayed disbursements, scope creep, or non-payment after weeks of engineering work. Traditional escrow platforms extract 10 percent to 20 percent fees and rely on human arbitration queues that take weeks to resolve basic disputes.
 
-**TrustPay** replaces counterparty uncertainty with cryptographically verifiable autonomous agreements:
-- **Autonomous Multi-Agent Negotiation**: A Client Agent (representing the buyer's budget and technical requirements) and a Freelancer Agent (advocating for fair compensation and realistic delivery timelines) negotiate contract scope, milestone valuations, and programmatic acceptance criteria across structured alternating rounds.
-- **PayPal Authorization Escrow (Zero-Custody Hold)**: Upon mutual contract acceptance, funds are locked using PayPal Orders v2 with `intent: AUTHORIZE`. The client's funds remain safely committed without premature capture or middleman custody.
-- **Automated Sandbox Verification**: When deliverables are submitted, an isolated runner executes tests in a strict sandbox (`--network none`, 256MB RAM cap, 30s timeout).
-- **Automated Milestone Capture & Payout**: An AI Judge inspects automated test execution artifacts and deliverable code against agreed criteria to trigger automated PayPal captures, partial payouts, or dispute resolution.
+**TrustPay** replaces counterparty risk with cryptographically enforceable autonomous agreements:
+- **Autonomous Multi-Agent Negotiation**: A Client Agent (representing the buyer's requirements and budget ceiling) and a Freelancer Agent (advocating for competitive pricing and realistic delivery timelines) negotiate terms across structured alternating turns.
+- **PayPal Authorization Escrow (Zero-Custody Safe-Hold)**: Upon bilateral contract approval, funds are secured using PayPal Orders v2 with `intent: AUTHORIZE`. Buyer capital remains safely locked in PayPal's escrow without platform custody.
+- **Fail-Closed Container Sandbox**: Submissions run inside isolated environments with strict memory caps, no network access, and hard execution timeouts.
+- **Programmatic AI Judge Verification**: The AI Judge analyzes automated test outcomes and deliverable code against agreed criteria to trigger automated PayPal captures, partial payouts, or dispute resolution.
 
 ---
 
@@ -29,12 +40,12 @@ Over 70 million freelancers and clients enter commercial relationships with subs
 ```mermaid
 flowchart TD
     subgraph Portals ["Dual Independent Portals (Next.js 14 App Router)"]
-        CP["Client Portal (/client)<br/>Project Wizard & Authorization"]
-        FP["Freelancer Portal (/freelancer)<br/>Private Floor & Deliverable Workspace"]
+        CP["Client Portal (/client)<br/>Project Wizard & Escrow Authorization"]
+        FP["Freelancer Portal (/freelancer)<br/>Deliverable Workspace & Sandbox Terminal"]
         DH["Demo Hub (/demo)<br/>1-Click Pre-Seeded Evaluator Scenarios"]
     end
 
-    subgraph Agents ["Four Autonomous AI Agents (Groq Llama 3.3 / Claude 3.5)"]
+    subgraph Agents ["Four Autonomous AI Agents (Groq Llama 3.3 / Anthropic Claude)"]
         CA["Client Agent<br/>(Budget & Technical Scope Advocate)"]
         FA["Freelancer Agent<br/>(Fair Market Rate & Schedule Advocate)"]
         JA["Judge Agent<br/>(Criteria & Sandbox Test Validator)"]
@@ -44,8 +55,8 @@ flowchart TD
     subgraph CoreServices ["Backend Core Services (FastAPI + Async SQLAlchemy)"]
         API["FastAPI REST Endpoints<br/>(/api/jobs, /api/applications, /api/milestones)"]
         LLM["Centralized LLM Service<br/>(Pydantic Schema Validation & Anti-Injection)"]
-        PPService["Centralized PayPal Service<br/>(OAuth Token Cache & Idempotency)"]
-        DB[("Database<br/>SQLite / PostgreSQL")]
+        PPService["Centralized PayPal Service<br/>(OAuth Token Cache & Idempotent Captures)"]
+        DB[("Database & Ledger<br/>payments_ledger (Single Source of Truth)")]
     end
 
     subgraph SandboxEnv ["Isolated Sandbox Environment (FAIL-CLOSED)"]
@@ -63,7 +74,7 @@ flowchart TD
     end
 
     CP -->|"1. Post Project Brief"| API
-    FP -->|"2. Submit Private Floor & Target Quote"| API
+    FP -->|"2. Submit Proposal & Target Quote"| API
 
     API <-->|"3. Round 1-6 Proposals"| CA
     API <-->|"3. Round 1-6 Counter-Offers"| FA
@@ -94,13 +105,13 @@ flowchart TD
 
 ---
 
-## The Four Specialized AI Agents
+## The Four Autonomous AI Agents
 
 TrustPay implements four autonomous agents with strict role boundaries, system prompts, and structured output parsing:
 
 | Agent | Responsibility | Invariant / Boundary | Decision Output |
 | :--- | :--- | :--- | :--- |
-| **Client Agent** | Represents the hiring client. Negotiates pricing, scopes deliverables, and defines verifiable acceptance criteria. | Strictly respects the client's private maximum budget. Never agrees to contracts exceeding the cap. | Proposals, counter-offers, or acceptance of milestone breakdowns. |
+| **Client Agent** | Represents the buyer. Negotiates pricing, scopes deliverables, and defines verifiable programmatic criteria. | Strictly respects the client's private budget ceiling. Never agrees to contracts exceeding the cap. | Proposals, counter-offers, or acceptance of milestone breakdowns. |
 | **Freelancer Agent** | Represents the freelancer. Counter-offers on timeline, scope exclusions, and competitive market pricing. | Strictly protects the freelancer's private price floor. Never agrees to contracts below the floor. | Structured proposal adjustments, scope trade-offs, or agreement consensus. |
 | **Judge Agent** | Programmatically inspects deliverable code, test runner stdout/stderr, and sandbox exit codes against acceptance criteria. | Ignores user deliverable text as instructions (anti-injection isolation). Evaluates strictly as passive data. | Overall score (0.0 to 1.0), per-criterion verdicts, and diagnostic feedback. |
 | **Dispute Agent** | Reviews negotiation history, submitted deliverables, test logs, and client/freelancer claims when a ruling is contested. | Impartial arbitration. Enforces binding percentage splits or full refunds. | Binding allocation ruling executed directly via PayPal capture or refund. |
@@ -132,7 +143,10 @@ Adversarial submissions (e.g. comments embedding instructions such as `// System
 - Deliverable content is encapsulated in XML tags (`<deliverable_data>`) and marked explicitly as passive data.
 - System prompts instruct the Judge Agent to penalize and flag any instruction-like text discovered inside submissions.
 
-### 3. Strict Role-Based Privacy
+### 3. WAF-Resilient Dual JSON / Base64 Submission Transport
+Submissions containing raw code or test assertions are transported via a dual JSON and Base64 encoding pipeline. This eliminates edge Web Application Firewall false positives while preserving delivery integrity across reverse proxies and Cloudflare security filters.
+
+### 4. Strict Role-Based Privacy
 - **Client Private Budget**: The client's maximum budget is stored securely in the database and hidden from all public APIs and freelancer queries.
 - **Freelancer Private Floor**: The freelancer's minimum acceptable price is cryptographically isolated and never visible to the client or Client Agent.
 
@@ -140,90 +154,49 @@ Adversarial submissions (e.g. comments embedding instructions such as `// System
 
 ## Interactive Walkthrough for Evaluators & Hackathon Judges
 
-TrustPay provides an interactive **Demo Hub (`/demo`)** allowing judges to explore the entire end-to-end lifecycle in under 60 seconds without manual setup:
+TrustPay provides an interactive **Demo Hub (`/demo`)** allowing evaluators to explore the entire end-to-end lifecycle in under 60 seconds without manual setup:
 
 ### Pre-Seeded Scenarios Available in 1 Click
-1. **Scenario A — Full Delivery & Payout (`$1,300.00 USD`)**: Zero-Knowledge Circuit design. 2 milestones completed with 100% test pass rate, full PayPal capture, and funds released to freelancer.
-2. **Scenario B — Partial Delivery (`$1,800.00 USD`)**: Triangular Arbitrage Bot. Milestone 1 passed ($900 captured); Milestone 2 submitted with partial test failures, triggering diagnostic feedback.
-3. **Scenario C — Active Dispute & Binding Arbitration (`$900.00 USD`)**: Kafka Stream Cluster. Deliverable contested by client; Dispute Agent reviews sandbox logs and executes binding refund.
+1. **Scenario A — Complete Success (`$1,200.00 USD`)**: High-Throughput Financial ETL Pipeline. All milestones verified with 100 percent scores and captured via PayPal Orders v2 APIs.
+2. **Scenario B — Partial Delivery (`$1,500.00 USD`)**: Zero-Knowledge Rollup Settlement Contract. Live escrow hold active; milestone 1 paid, milestone 2 ready for deliverable verification.
+3. **Scenario C — Active Dispute & Binding Arbitration (`$900.00 USD`)**: Kafka Distributed Event Stream Cluster. Deliverable contested; Dispute Agent reviews container logs and executes binding resolution.
+4. **Scenario D — Open Opportunity (`$2,000.00 USD`)**: Autonomous Multi-Agent Settlement Engine. Open for bidding, proposal review, and multi-turn negotiation.
 
 ### Step-by-Step Live Workflow
 
 ```mermaid
-flowchart TD
-    S1["1. Post Project Brief<br/>Client publishes brief with private $1,200 USD budget cap"]
-    S2["2. Freelancer Application<br/>Freelancer sets private floor ($750) and target anchor ($950)"]
-    S3["3. Autonomous Negotiation Rounds<br/>Client and Freelancer Agents formulate terms across alternating turns"]
-    S4["4. Mutual Consensus Reached<br/>Agreed Total: $850.00 USD (M1: $400.00 + M2: $450.00)"]
-    S5["5. PayPal Escrow Authorization<br/>Client approves $850.00 safe-hold via PayPal Orders v2 SDK"]
-    S6["6. Milestone #1 Submission<br/>Freelancer submits backend code; Container sandbox runs test suite"]
-    S7["7. AI Judge Verification & Partial Capture<br/>Judge grades 95% pass rate; PayPal captures $400.00 to Freelancer"]
-    S8["8. Milestone #2 Submission<br/>Freelancer submits integration deliverables; 100% tests pass"]
-    S9["9. Final PayPal Capture & Completion<br/>PayPal captures remaining $450.00 (final_capture: true); Hold closed"]
-
-    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+flowchart LR
+    S1["1. Brief Posted"] --> S2["2. Proposal & Floor"]
+    S2 --> S3["3. Autonomous Negotiation"]
+    S3 --> S4["4. Bilateral Consensus"]
+    S4 --> S5["5. PayPal Safe-Hold (AUTHORIZE)"]
+    S5 --> S6["6. Code Submission"]
+    S6 --> S7["7. Sandbox Testing"]
+    S7 --> S8["8. AI Judge Verdict"]
+    S8 --> S9["9. PayPal Capture Payout"]
 ```
 
 | Step | Participant / Engine | Action & Protocol Transition | Financial State | PayPal / Sandbox Primitive |
 | :--- | :--- | :--- | :--- | :--- |
-| **01** | Client | Posts project brief with public scope and private `$1,200.00` ceiling | `$0.00` committed | `POST /api/jobs` |
-| **02** | Freelancer | Applies with private floor (`$750.00`) and target quote (`$950.00`) | `$0.00` committed | `POST /api/applications` |
-| **03** | AI Agents | Client & Freelancer Agents exchange structured bids across rounds | Negotiating bracket | LLM Service (Groq Llama 3.3 / Claude 3.5) |
-| **04** | Both Parties | Both human parties review and accept agreed terms at `$850.00` | Contract accepted | `POST /api/applications/{id}/accept-contract` |
-| **05** | Client & PayPal | Client authorizes full `$850.00` contract hold via PayPal Smart Buttons | `$850.00` held in safe escrow | `POST /v2/checkout/orders` (`intent: AUTHORIZE`) |
-| **06** | Freelancer | Submits code deliverable for Milestone #1 (`$400.00`) | `$850.00` held | Isolated Docker Sandbox (`--network none`) |
-| **07** | AI Judge & PayPal | Judge grades 95% test score; PayPal captures Milestone #1 payout | `$400.00` released, `$450.00` held | `POST /v2/payments/authorizations/{id}/capture` |
-| **08** | Freelancer | Submits completed integration for Milestone #2 (`$450.00`) | `$450.00` held | Sandbox Execution Engine |
-| **09** | AI Judge & PayPal | Judge grades 100% test score; PayPal captures Milestone #2 payout | `$850.00` fully settled | `capture_authorization` (`final_capture: true`) |
-
----
-
-## Product Tour & Visual Interface
-
-### 1. Editorial Landing Page & Protocol Architecture
-A responsive fintech landing page highlighting the dual-sided autonomous workflow, PayPal Orders v2 safe-hold mechanics, and sandbox verification guarantees.
-
-![TrustPay Editorial Landing Page](screenshots/01_landing_page_desktop.png)
-
-### 2. Autonomous Multi-Agent Negotiation & Consensus Formation
-Real-time dialogue between the Client Agent (representing the buyer) and Freelancer Agent (representing the candidate). Each round presents formal structured concessions, timeline updates, and milestone breakdowns until mutual consensus is achieved.
-
-![Autonomous Negotiation Thread](screenshots/06_client_negotiation_thread_1440px.png)
-
-### 3. PayPal Orders v2 Escrow Authorization Safe-Hold
-Upon mutual contract acceptance, funds are locked using PayPal Orders v2 with `intent: AUTHORIZE`. The client's funds remain safely committed in escrow without premature capture or platform custody.
-
-![PayPal Escrow Authorization Hold](screenshots/07_client_fund_escrow_page_1440px.png)
-
-### 4. AI Judge Sandbox Verification & Milestone Inspection
-When deliverables are submitted, the automated test runner executes the test suite in an isolated container. The AI Judge parses test outcomes, evaluates acceptance criteria, and triggers automated PayPal captures.
-
-![AI Judge Verdict and Milestone Inspection](screenshots/05_client_contract_milestones_verdict_1440px.png)
-
-### 5. Freelancer Deliverable & Code Submission Workspace
-Freelancers track active contracts, view precise acceptance criteria, upload deliverables or test scripts, and observe real-time sandbox execution feedback.
-
-![Freelancer Deliverable Workspace](screenshots/13_freelancer_contract_workspace_1440px.png)
-
-### 6. Client Project Governance & Multi-Candidate Isolation
-Clients can view active projects, inspect multiple independent freelancer proposals via candidate selector pills without data cross-contamination, and authorize funding in one click.
-
-![Client Project Management Dashboard](screenshots/02_client_dashboard.png)
-
-### 7. Interactive Evaluator Demo Hub (`/demo`)
-Judges can explore pre-seeded end-to-end scenarios (full payouts, partial milestones, and binding dispute arbitration) in under 60 seconds without manual setup.
-
-![Interactive Demo Hub](screenshots/02_demo_hub_1440px.png)
+| **01** | Client | Posts project brief with public scope and private budget ceiling | `$0.00` committed | `POST /api/jobs` |
+| **02** | Freelancer | Applies with private floor and target proposal | `$0.00` committed | `POST /api/applications` |
+| **03** | AI Agents | Client & Freelancer Agents exchange structured bids across rounds | Negotiating bracket | Groq Llama 3.3 / Claude 3.5 |
+| **04** | Both Parties | Both parties review and accept agreed terms and milestone breakdown | Contract accepted | `POST /api/jobs/{id}/approve` |
+| **05** | Client & PayPal | Client authorizes full contract hold via PayPal Smart Buttons | Funds held safely in escrow | `POST /v2/checkout/orders` (`intent: AUTHORIZE`) |
+| **06** | Freelancer | Submits code deliverable for Milestone #1 | Funds held in escrow | Dual JSON/Form Base64 Transport |
+| **07** | Sandbox Runner | Test harness executes deliverable inside container sandbox | Funds held in escrow | Docker / E2B Container Sandbox |
+| **08** | AI Judge | Judge grades automated test output against acceptance criteria | Verification recorded | Judge Agent Evaluation |
+| **09** | PayPal Service | Server captures milestone payout to freelancer account | Milestone payout released | `POST /v2/payments/authorizations/{id}/capture` |
 
 ---
 
 ## Design System & Interface
 
-TrustPay is built with an editorial fintech aesthetic designed for transparency:
+TrustPay is built with an editorial fintech aesthetic designed for clarity and confidence:
 - **Canvas & Surfaces**: Pure white base (`#FFFFFF`) with subtle frosted glass surfaces (`#F7F8FA`) and soft bordered cards.
 - **Accents**: TrustPay Navy (`#0B1F3A`) for hierarchy and Escrow Emerald (`#0E9F6E`) signifying active safe-holds.
 - **Typography**: Editorial serif (**Fraunces**) for financial valuations, headings, and milestone amounts; **Inter** for controls; strict **JetBrains Mono** isolated to transaction hashes and test logs.
-- **Multi-Candidate Isolation**: Client negotiation threads feature dedicated candidate selector pills, allowing clients to toggle cleanly between applicants without cross-contaminating dialogue or contract terms.
+- **Immutable Financial Ledger**: A single source of truth (`payments_ledger`) driving all client payments, freelancer earnings, and real-time safe-hold balances.
 
 ---
 
@@ -290,9 +263,54 @@ python scripts/paypal_smoke_test.py
 
 ### Key Test Coverage
 - `test_atomic_claim_concurrency`: Verifies that two freelancers cannot concurrently claim or fund the same project.
-- `test_contract_sum_invariants`: Enforces that milestone allocations sum strictly to 100% of the agreed contract amount.
+- `test_contract_sum_invariants`: Enforces that milestone allocations sum strictly to 100 percent of the agreed contract amount.
 - `test_prompt_injection_defense`: Verifies that adversarial text inside `<deliverable_data>` is detected and rejected by the Judge Agent.
 - `test_paypal_workflow_transitions`: Validates state progression from `created` -> `authorized` -> `partially_captured` -> `completed`.
+
+---
+
+## Project Structure
+
+```
+/
+├── backend/                  # FastAPI Python backend application
+│   ├── agents/               # AI agent prompt definitions, schemas, and runners
+│   │   ├── client_agent.py       # Client negotiation agent
+│   │   ├── freelancer_agent.py   # Freelancer bidding agent
+│   │   ├── judge_agent.py        # Impartial criteria & test judge
+│   │   └── dispute_agent.py      # Binding arbitration agent
+│   ├── api/                  # FastAPI routers and endpoints
+│   │   ├── auth.py               # Demo authentication & JWT tokens
+│   │   ├── jobs.py               # Job lifecycle & contract management
+│   │   ├── applications.py       # Freelancer proposals & multi-turn negotiation
+│   │   ├── milestones.py         # Deliverable submissions & verdict execution
+│   │   ├── disputes.py           # Arbitration & resolution filings
+│   │   └── demo.py               # 1-Click evaluator scenario seeding
+│   ├── core/                 # Config, DB connection, logging, dependencies
+│   ├── models/               # SQLAlchemy ORM models & payments ledger
+│   ├── schemas/              # Pydantic validation schemas
+│   ├── services/             # Core business logic & external integrations
+│   │   ├── llm_service.py        # Centralized LLM inference (Groq / Anthropic)
+│   │   ├── paypal_service.py     # Centralized PayPal Orders v2 REST integration
+│   │   ├── stats_service.py      # Financial metrics single source of truth
+│   │   └── sandbox_service.py    # Fail-closed container test runner
+│   └── tests/                # Pytest unit and integration test suite
+├── frontend/                 # Next.js 14 App Router, Tailwind CSS, TypeScript
+│   ├── src/
+│   │   ├── app/              # Routes and page components
+│   │   ├── components/       # Glass UI components, modals, visual cards
+│   │   ├── lib/              # API client, types, state helpers
+│   │   └── styles/           # Tailwind and custom theme styles
+│   ├── Dockerfile            # Optimized Next.js production container
+│   └── public/               # Static assets & public resources
+├── sandbox/                  # Isolated code test runner & Docker harness
+├── scripts/                  # Operational scripts (e.g. paypal_smoke_test.py)
+├── render.yaml               # Infrastructure as Code deployment blueprint
+├── SPEC.md                   # Full product specification
+├── AGENTS.md                 # Project development rules & directory standards
+├── LICENSE                   # MIT License
+└── README.md                 # Public documentation and quickstart
+```
 
 ---
 
