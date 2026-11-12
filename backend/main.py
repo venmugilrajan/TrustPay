@@ -58,6 +58,16 @@ app.include_router(timeline_router)
 app.include_router(demo_router)
 
 
+@app.get("/")
+async def root():
+    return {
+        "name": "TrustPay API",
+        "status": "online",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
+
+
 @app.get("/api/health")
 async def health_check():
     from backend.services.paypal_service import paypal_service
