@@ -88,3 +88,16 @@ async def init_db():
                 )
                 session.add(user)
         await session.commit()
+
+        # If database has zero jobs on startup (e.g. freshly provisioned or restarted container),
+        # automatically seed the 3 rich demo contracts so the app is always fully populated.
+        from backend.models.models import Job
+        from sqlalchemy import func
+        job_count = (await session.execute(select(func.count(Job.id)))).scalar() or 0
+        if job_count == 0:
+            try:
+                from backend.api.demo import seed_demo_scenarios
+                await seed_demo_scenarios(db=session)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Auto-seed on startup skipped: {e}")
