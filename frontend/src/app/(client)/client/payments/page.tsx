@@ -88,12 +88,34 @@ export default function ClientPaymentsPage() {
     }
   };
 
-  // Correct field mapping from stats service single source of truth
+  // Correct field mapping with ledger entries single source of truth fallback
+  const authorizedFromEntries = entries
+    .filter((e) => e.type?.toLowerCase() === "authorized")
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const capturedFromEntries = entries
+    .filter((e) => e.type?.toLowerCase() === "captured")
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const voidedFromEntries = entries
+    .filter((e) => e.type?.toLowerCase() === "voided")
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const refundedFromEntries = entries
+    .filter((e) => e.type?.toLowerCase() === "refunded")
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+  const heldFromEntries = Math.max(0, authorizedFromEntries - capturedFromEntries - voidedFromEntries - refundedFromEntries);
+
   const heldInSafeHold =
-    stats?.funds_held_escrow_usd ?? stats?.held_in_escrow_usd ?? 0;
+    (stats && stats.funds_held_escrow_usd > 0)
+      ? stats.funds_held_escrow_usd
+      : heldFromEntries;
   const released =
-    stats?.released_to_freelancers_usd ?? stats?.total_released_usd ?? 0;
-  const refunded = stats?.total_refunded_usd ?? 0;
+    (stats && stats.released_to_freelancers_usd > 0)
+      ? stats.released_to_freelancers_usd
+      : capturedFromEntries;
+  const refunded =
+    (stats && stats.total_refunded_usd > 0)
+      ? stats.total_refunded_usd
+      : refundedFromEntries;
 
   const columns = [
     {

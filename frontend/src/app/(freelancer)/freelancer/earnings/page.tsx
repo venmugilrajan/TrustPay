@@ -10,7 +10,7 @@ import {
   Skeleton,
   EmptyState,
 } from "@/components/ui";
-import { getFreelancerEarnings, getFreelancerStats } from "@/lib/api";
+import { getFreelancerEarnings, getFreelancerStats, getFreelancerApplications } from "@/lib/api";
 
 interface PayoutRecord {
   id: string;
@@ -27,17 +27,20 @@ interface PayoutRecord {
 export default function FreelancerEarningsPage() {
   const [earnings, setEarnings] = useState<PayoutRecord[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [earningsData, statsData] = await Promise.all([
+        const [earningsData, statsData, appsData] = await Promise.all([
           getFreelancerEarnings(),
           getFreelancerStats().catch(() => null),
+          getFreelancerApplications().catch(() => []),
         ]);
         setEarnings(earningsData || []);
         setStats(statsData);
+        setApps(appsData || []);
       } catch (err) {
         console.warn("Failed to load earnings:", err);
       } finally {
@@ -48,10 +51,34 @@ export default function FreelancerEarningsPage() {
     fetchData();
   }, []);
 
+  const totalEarnedFromEntries = earnings.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalEarned =
-    stats?.total_earned_usd ?? earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const pendingSafeHold = stats?.awaiting_release_usd ?? stats?.in_escrow_usd ?? 0;
-  const activeCount = stats?.active_contracts ?? 0;
+    (stats && stats.total_earned_usd > 0)
+      ? stats.total_earned_usd
+      : totalEarnedFromEntries;
+
+  // Active contracts count fallback from applications
+  const activeAppsCount = apps.filter((a) => {
+    const s = (a.status || a.contract?.status || "").toLowerCase();
+    return ["funded", "in_progress", "active"].includes(s);
+  }).length;
+  const activeCount = (stats && stats.active_contracts > 0) ? stats.active_contracts : activeAppsCount;
+
+  // Pending safe hold: sum of unpaid milestone amounts across active contracts
+  const pendingFromApps = apps
+    .filter((a) => ["funded", "in_progress", "active"].includes((a.status || a.contract?.status || "").toLowerCase()))
+    .reduce((sum, a) => {
+      const milestones = a.contract?.milestones || [];
+      const pendingSum = milestones
+        .filter((m: any) => m.status !== "paid" && m.status !== "passed")
+        .reduce((mSum: number, m: any) => mSum + (Number(m.amount) || 0), 0);
+      return sum + pendingSum;
+    }, 0);
+
+  const pendingSafeHold =
+    (stats && stats.awaiting_release_usd > 0)
+      ? stats.awaiting_release_usd
+      : pendingFromApps;
 
   const columns = [
     {

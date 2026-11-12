@@ -106,7 +106,13 @@ export default function ClientDashboardPage() {
     ? stats.funds_held_escrow_usd
     : activeContracts.reduce((sum, j) => sum + (j.contract?.total_amount || 0), 0);
 
-  const releasedFunds = stats?.total_captured_usd || 0;
+  const capturedFromJobs = jobs.reduce((sum, j) => {
+    const milestones = j.contract?.milestones || [];
+    return sum + milestones.reduce((mSum, m) => mSum + (m.status === "paid" || m.status === "passed" ? (Number(m.paid_amount || m.amount) || 0) : 0), 0);
+  }, 0);
+  const releasedFunds = (stats && stats.total_captured_usd && stats.total_captured_usd > 0)
+    ? stats.total_captured_usd
+    : (stats?.released_payouts_usd || capturedFromJobs);
 
   // Determine top priority action for "What to do now" card
   const urgentJob =

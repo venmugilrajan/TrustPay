@@ -105,7 +105,13 @@ export default function FreelancerDashboardPage() {
     0
   );
 
-  const totalEarned = stats?.total_captured_usd || 0;
+  const earnedFromApps = apps.reduce((sum, a) => {
+    const milestones = a.contract?.milestones || [];
+    return sum + milestones.reduce((mSum: number, m: any) => mSum + (m.status === "paid" || m.status === "passed" ? (Number(m.paid_amount || m.amount) || 0) : 0), 0);
+  }, 0);
+  const totalEarned = (stats && stats.total_captured_usd && stats.total_captured_usd > 0)
+    ? stats.total_captured_usd
+    : (stats?.released_payouts_usd || earnedFromApps);
 
   // Next action needed
   const primaryApp =

@@ -62,10 +62,10 @@ class StatsService:
         return entry
 
     @staticmethod
-    async def get_client_stats(db: AsyncSession, client_id: str, include_demo: bool = False) -> Dict[str, Any]:
+    async def get_client_stats(db: AsyncSession, client_id: str, include_demo: bool = True) -> Dict[str, Any]:
         """
         Computes financial metrics for a client strictly from payments_ledger.
-        Excludes demo & mock entries by default so real financials are clean.
+        Includes demo & sandbox entries so dashboard numbers are complete.
         """
         job_stmt = (
             select(Job)
@@ -127,7 +127,7 @@ class StatsService:
         }
 
     @staticmethod
-    async def get_freelancer_stats(db: AsyncSession, freelancer_id: str, include_demo: bool = False) -> Dict[str, Any]:
+    async def get_freelancer_stats(db: AsyncSession, freelancer_id: str, include_demo: bool = True) -> Dict[str, Any]:
         """
         Computes earnings and pending figures for a freelancer strictly from payments_ledger.
         """
@@ -145,6 +145,7 @@ class StatsService:
             apps = [a for a in apps if not (a.job and getattr(a.job, "is_demo", False))]
 
         contract_ids = [a.contract.id for a in apps if a.contract]
+        job_ids = [a.job_id for a in apps if a.job_id]
 
         active_contracts = sum(
             1 for a in apps if (a.contract and a.contract.status in ["funded", "in_progress", "active"]) or (a.status in ["funded", "in_progress"])
@@ -160,7 +161,7 @@ class StatsService:
                     if m.status in ["submitted", "judging", "evaluating", "under_review"]:
                         pending_verification += 1
 
-        if not contract_ids:
+        if not contract_ids and not job_ids:
             return {
                 "active_contracts": active_contracts,
                 "negotiating_count": negotiating_count,
@@ -169,7 +170,14 @@ class StatsService:
                 "awaiting_release_usd": 0.0,
             }
 
-        ledger_stmt = select(PaymentLedgerEntry).where(PaymentLedgerEntry.contract_id.in_(contract_ids))
+        ledger_conditions = []
+        if contract_ids:
+            ledger_conditions.append(PaymentLedgerEntry.contract_id.in_(contract_ids))
+        if job_ids:
+            ledger_conditions.append(PaymentLedgerEntry.job_id.in_(job_ids))
+
+        from sqlalchemy import or_
+        ledger_stmt = select(PaymentLedgerEntry).where(or_(*ledger_conditions))
         if not include_demo:
             ledger_stmt = ledger_stmt.where(PaymentLedgerEntry.source == "paypal_sandbox_live")
 
@@ -196,7 +204,7 @@ class StatsService:
         }
 
     @staticmethod
-    async def get_system_stats(db: AsyncSession, include_demo: bool = False) -> Dict[str, Any]:
+    async def get_system_stats(db: AsyncSession, include_demo: bool = True) -> Dict[str, Any]:
         """
         Global platform aggregates derived from payments_ledger.
         """

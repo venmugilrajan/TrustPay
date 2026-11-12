@@ -526,7 +526,7 @@ async def get_client_statistics(
     """
     Returns financial and contract metrics for the client from payments_ledger.
     """
-    return await stats_service.get_client_stats(db, current_user.user_id)
+    return await stats_service.get_client_stats(db, current_user.user_id, include_demo=True)
 
 
 # =========================================================================
@@ -788,7 +788,7 @@ async def get_freelancer_statistics(
     """
     Returns earnings and pending verification metrics from payments_ledger.
     """
-    return await stats_service.get_freelancer_stats(db, current_user.user_id)
+    return await stats_service.get_freelancer_stats(db, current_user.user_id, include_demo=True)
 
 
 # =========================================================================
