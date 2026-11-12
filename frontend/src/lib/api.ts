@@ -476,7 +476,7 @@ export async function submitMilestoneWork(
     requestBody = payload;
   } else {
     headers["Content-Type"] = "application/json";
-    const rawText = payload.content_text || "";
+    const rawText = (payload as any)?.content_text || "";
     let b64Text = "";
     try {
       b64Text = typeof window !== "undefined"
@@ -486,7 +486,7 @@ export async function submitMilestoneWork(
       b64Text = "";
     }
     requestBody = JSON.stringify({
-      submission_type: payload.submission_type,
+      submission_type: (payload as any)?.submission_type || "code",
       content_text: rawText,
       content_text_b64: b64Text,
     });
